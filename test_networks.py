@@ -5,7 +5,12 @@ Created on Mon Feb  4 12:31:45 2019
 @author: joph
 """
 
-from ml_classes import *
+
+
+from importlib import reload
+
+#import ml_classes
+
 
 #https://en.wikipedia.org/wiki/Universal_approximation_theorem
 
@@ -57,11 +62,9 @@ def quadratic_f(x):
 def sin_f(x):
     return np.sin(x)
 
-n=20000
-batch_size=5
-max_elem=10000
-
-from ml_classes import *
+n=5000
+batch_size=1
+max_elem=2500
 
 #linear=Function_data_no_ts(n,10,max_elem,model,linear_f,1)
 #linear.fit_model_plot_results(epochs,batch_size)
@@ -72,43 +75,65 @@ from ml_classes import *
 #linear=Function_data_no_ts(n,10,max_elem,model,sin_f,1)
 #linear.fit_model_plot_results(epochs,batch_size)
 
-lags=10
-epochs=10
+lags=1
+epochs=5
+
+#reload(ml_classes)
+
 
 model = Sequential()
-model.add(Dense(20, activation='tanh',input_dim=lags))
+model.add(Dense(2,input_dim=lags))
 model.add(LeakyReLU(alpha=0.03))
-model.add(Dense(20,activation='tanh'))
+model.add(Dense(1))
+model.compile(optimizer='adam',
+              loss='mean_squared_error',
+              metrics=['accuracy'])
+
+
+linear=Function_data_no_ts(n,10,max_elem,model,linear_f,lags)
+linear.fit_model_plot_results(epochs,batch_size)
+
+model = Sequential()
+model.add(Dense(5, activation='tanh',input_dim=lags))
+model.add(LeakyReLU(alpha=0.03))
+model.add(Dense(10,activation='tanh'))
 model.add(LeakyReLU(alpha=0.03))
 model.add(Dense(1,activation='tanh'))
 model.compile(optimizer='adam',
               loss='mean_squared_error',
               metrics=['accuracy'])
 
-linear=Function_data_no_ts(n,10,max_elem,model,linear_f,lags)
-linear.fit_model_plot_results(epochs,batch_size)
-
 linear=Function_data_no_ts(n,10,max_elem,model,quadratic_f,lags)
 linear.fit_model_plot_results(epochs,batch_size)
+
+model = Sequential()
+model.add(Dense(80, activation='tanh',input_dim=lags))
+model.add(LeakyReLU(alpha=0.03))
+model.add(Dense(40,activation='tanh'))
+model.add(LeakyReLU(alpha=0.03))
+model.add(Dense(1,activation='tanh'))
+model.compile(optimizer='adam',
+              loss='mean_squared_error',
+              metrics=['accuracy'])
 
 linear=Function_data_no_ts(n,10,max_elem,model,sin_f,lags)
 linear.fit_model_plot_results(epochs,batch_size)
 
 model = Sequential()
-model.add(LSTM(30, batch_input_shape=(1, 1, 1), return_sequences=True, stateful=True))
-model.add(LSTM(30, return_sequences=False, stateful=True))
-model.add(Dense(30))
+model.add(LSTM(20, batch_input_shape=(1, lags, 1), return_sequences=True, stateful=True))
+model.add(LSTM(20, return_sequences=False, stateful=True))
+model.add(Dense(20))
 model.add(Dense(1))
 model.compile(loss='mse', optimizer=adam(lr=0.0001))
 
-linear=Function_data_no_ts(n,10,max_elem,model,linear_f,1)
+linear=Function_data_lstm(n,10,max_elem,model,linear_f,lags)
 linear.fit_model_plot_results(epochs,batch_size)
 
-linear=Function_data_no_ts(n,10,max_elem,model,quadratic_f,1)
-linear.fit_model_plot_results(epochs,batch_size)
+quadratic=Function_data_lstm(n,10,max_elem,model,quadratic_f,lags)
+quadratic.fit_model_plot_results(epochs,batch_size)
 
-linear=Function_data_no_ts(n,10,max_elem,model,sin_f,1)
-linear.fit_model_plot_results(epochs,batch_size)
+sine=Function_data_lstm(n,10,max_elem,model,sin_f,lags)
+sine.fit_model_plot_results(epochs,batch_size)
 
 
 

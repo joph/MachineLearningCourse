@@ -1,0 +1,11 @@
+/data/
+/GIS/
+/GRASS_TEMP/
+/site-characteristics/
+
+*.shp
+*.dbf
+*.prj
+*.qpj
+*.shx
+*.h5

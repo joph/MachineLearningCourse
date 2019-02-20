@@ -29,6 +29,8 @@ from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 import pydot
 
+        
+
 class Function_data_no_ts:
     
     def __init__(self,n,upper,max_elem,model,f,lags):
@@ -62,6 +64,7 @@ class Function_data_no_ts:
         self.dataset_out_of_range = self.dataset_scaled[max_elem:self.dataset_scaled.shape[0],:]
         
         self.train, self.test = train_test_split(self.dataset_scaled_short,train_size=0.7,test_size=0.3)
+        print("test")
         #print(self.train.shape)
         #print(self.test.shape)
         
@@ -78,13 +81,36 @@ class Function_data_no_ts:
     def fit_model_plot_results(self,epochs,batch_size):
          x=self.train[:,0:(self.train.shape[1]-1)]
          y=self.train[:,self.train.shape[1]-1]
+         
+         self.train_model(x,y,epochs,batch_size)
 
+    def train_model(self,x,y,epochs,batch_size):
+        
+         index=np.random.randint(0,len(x),round(0.8*len(x)))
+        
+         x_t=x[index]
+         y_t=y[index]
+         
+         mask = np.ones(len(x),dtype=bool) #np.ones_like(a,dtype=bool)
+         mask[index] = False
+         
+         x_val=x[mask]
+         y_val=y[mask]
+         
+        
          self.history=self.model.fit(x,
                                      y,
                                      epochs=epochs,
-                                     batch_size=batch_size)
-       
-         plt.plot(self.history.history['loss'])
+                                     batch_size=batch_size,
+                                     validation_data=(x_val,y_val))
+         
+         
+         loss=self.history.history['loss']
+         val_loss=self.history.history['val_loss']
+         epochs=range(1,len(loss)+1)
+         plt.plot(epochs,loss,'bo')
+         plt.plot(epochs,val_loss,'b')
+
          plt.title('Model loss')
          plt.ylabel('Loss')
          plt.xlabel('Epoch')
@@ -97,6 +123,9 @@ class Function_data_no_ts:
    
     def plot_test_results(self,batch_size):
          x=self.test[:,0:(self.test.shape[1]-1)]
+         self.plot_test_results_int(x,batch_size)
+         
+    def plot_test_results_int(self,x,batch_size):
        
          y_predict_test=self.model.predict(x,batch_size=batch_size)
          y_predict_test.shape = (len(y_predict_test))
@@ -116,6 +145,9 @@ class Function_data_no_ts:
     def plot_out_of_range_results(self,batch_size):
         
          x=self.dataset_out_of_range[:,0:(self.dataset_out_of_range.shape[1]-1)]
+         self.plot_out_of_range_results_int(x,batch_size)
+         
+    def plot_out_of_range_results_int(self,x,batch_size):
          
          y_predict_out_range=self.model.predict(x,batch_size=batch_size)
          y_predict_out_range.shape = (len(y_predict_out_range))
@@ -131,15 +163,40 @@ class Function_data_no_ts:
          plt.scatter(x,y)
          plt.scatter(x,y_predict_out_range)
          plt.show()
+        
+        
 
+class Function_data_lstm(Function_data_no_ts):
     
-    def test_out_of_range(self,range_):
-        test_out=np.random.random(n)*(upper+range_)
+    def __init__(self,n,upper,max_elem,model,f,lags):
+        super().__init__(n,upper,max_elem,model,f,lags)
+    
+    def fit_model_plot_results(self,epochs,batch_size):
+         x=self.train[:,0:(self.train.shape[1]-1)]
+         y=self.train[:,self.train.shape[1]-1]
+         
+         x=x.reshape((self.train.shape[0], self.lags, 1))
+         
+         self.train_model(x,y,epochs,batch_size)
+         
+    def plot_test_results(self,batch_size):
+         x=self.test[:,0:(self.test.shape[1]-1)]
+         x=x.reshape((self.test.shape[0], self.lags, 1))
+  
+         self.plot_test_results_int(x,batch_size)
+         
+    def plot_out_of_range_results(self,batch_size):
+        
+         x=self.dataset_out_of_range[:,0:(self.dataset_out_of_range.shape[1]-1)]
+         x=x.reshape((self.dataset_out_of_range.shape[0], self.lags, 1))
+         self.plot_out_of_range_results_int(x,batch_size)
+   
         
         
         
         
         
+
     
     
     
