@@ -12,8 +12,7 @@ library(data.table)
 library(geosphere)
 library(foreign)
 library(sf)
-library(imager)
-library(readbitmap)
+library(parallel)
 
 
 ###imports windturbine data from ig-windkraft, adds column with windpark-name,
@@ -66,7 +65,13 @@ importAndSaveIGWindData<-function(fileName){
   
   wind_turbines<-wind_turbines %>% mutate(Nabenhoehe=as.numeric(Nabenhoehe),Rotordurchmesser=as.numeric(Rotordurchmesser))
   
-  write_feather(wind_turbines,fileName)
+  ###remove long/lat duplicates
+  longlat<-windTurbines %>% mutate(n=1:n()) %>% dplyr::select(Long,Lat,n)
+  windTurbines_filtered<-windTurbines %>% 
+    filter(!(row_number() %in% longlat[duplicated(longlat[,1:2]),]$n)) 
+  
+  
+  write_csv(wind_turbines,fileName)
   
 
   return(wind_turbines)
@@ -159,10 +164,10 @@ calculateHull<-function(Long,Lat,Park){
   }
   
   
-  pdf(paste("data/pdfsConvexHull/",Park[1],".pdf",sep=""))
-  plot(dat, pch=19)
-  lines(coords, col="red")
-  dev.off()
+  #pdf(paste("data/pdfsConvexHull/",Park[1],".pdf",sep=""))
+  #plot(dat, pch=19)
+  #lines(coords, col="red")
+  #dev.off()
   
   
   sp_poly <- SpatialPolygons(list(Polygons(list(Polygon(coords)), ID=1)),proj4string=CRS("+proj=longlat +datum=WGS84"))
@@ -191,17 +196,6 @@ tile2Coords<-function(x,y,z){
   return(c(long1,long2,lat1,lat2))  
   
 }
-
-
-
-
-
-
-
-
-
-
-
 
 
 save_tile<-function(file,lon,lat,zoom){
@@ -234,6 +228,8 @@ save_tile<-function(file,lon,lat,zoom){
   
   #layout(matrix(1:9, ncol=3, byrow=TRUE))
   
+  temp<-PATH_LOCAL_TEMP
+  dir.create(temp, showWarnings = FALSE)
   
   prefix<-floor(runif(1)*100000) 
   
@@ -242,7 +238,7 @@ save_tile<-function(file,lon,lat,zoom){
       #print(i)
       url<-paste0("http://mt0.google.com/vt/lyrs=s&hl=en&x=",cols+i,"&y=",rows+j,"&z=",zoom,"")
       #print(url)
-      f<-paste0("data/temp/",prefix,cnt,".jpg")
+      f<-paste0(temp,prefix,cnt,".jpg")
       download.file(url, f, mode = "wb",quiet=TRUE)
      
       
@@ -254,7 +250,7 @@ save_tile<-function(file,lon,lat,zoom){
       ymin(img) <- coords[3]
       ymax(img) <- coords[4]
       crs(img) <- CRS("+init=epsg:4326")
-      f<-paste0("data/temp/",prefix,cnt,".tif")
+      f<-paste0(temp,prefix,cnt,".tif")
       writeRaster(img,f)
       
       cnt<-cnt+1
@@ -263,14 +259,14 @@ save_tile<-function(file,lon,lat,zoom){
       
   }
   
-  files<-paste0("data/temp/",prefix,1:9,".tif")
+  files<-paste0(temp,prefix,1:9,".tif")
   all_raster<-sapply(files,brick)
   fin<-all_raster[[1]]
   for(i in 2:9){
     fin<-merge(fin,all_raster[[i]],tolerance=1)
   }
 
-  files_jpg<-paste0("data/temp/",prefix,1:9,".jpg")
+  files_jpg<-paste0(temp,prefix,1:9,".jpg")
   
   unlink(files)
   unlink(files_jpg)
@@ -287,7 +283,7 @@ save_tile<-function(file,lon,lat,zoom){
   #plotRGB(ras)
   
   #print(file)
-  print(ras)
+  #print(ras)
   writeRaster(ras,file)
   
 }
@@ -331,73 +327,128 @@ createNonWindTurbineImagesRandom<-function(windTurbines_filtered,
   
    
   
-  n_<-1
+
   minX<-min(windTurbines_filtered$Long)
   maxX<-max(windTurbines_filtered$Long)
   minY<-min(windTurbines_filtered$Lat)
   maxY<-max(windTurbines_filtered$Lat)
   
-  while(n_<=n){
-      print(n_)
+  
+  logfile<-logfile<-paste0(PATH_TEMP,"out_NoWindturbines.log")
+  
+  unlink(logfile)
+  cl <- makeCluster(4,
+                    outfile=logfile)
+  
+  clusterEvalQ(cl, source("scripts/windturbines/functions.R"))
+  clusterEvalQ(cl, source("scripts/windturbines/00_config.R"))
+  
+  print(paste0("Running in parallel mode. Check ",logfile," for subprocess outputs."))
+  
+  parLapply(cl,
+            1:n,
+            getOneRandomTileNoTurbine,
+            directory,
+            subs_union,
+            minX,
+            maxX,
+            minY,
+            maxY,
+            zoom
+            )
+  # one or more parLapply calls
+  stopCluster(cl)
+  
+  
+ 
+  
+  
+}
+
+getOneRandomTileNoTurbine<-function(i,directory,subs_union,minX,maxX,minY,maxY,zoom){
+    print(i)
+  
+    got<-TRUE
+    
+    while(got){
+  
       x<-minX+runif(1)*(maxX-minX)
       y<-minY+runif(1)*(maxY-minY)
-      
-      
+    
       points<-data.frame(Long=c(x),Lat=c(y))
       coordinates(points) <- c("Long", "Lat")
       proj4string(points) <- CRS("+proj=longlat +datum=WGS84")  
       points<-as(points, "SpatialPoints")
       points<-spTransform(points,projection(subs_union))
-      
+    
       points_buffer<-gBuffer(points[1,],width=160,capStyle="SQUARE")
+    
+    if(!gIntersects(points_buffer,subs_union)){
       
-      if(!gIntersects(points_buffer,subs_union)){
+      result <- tryCatch({
         
-        result <- tryCatch({
-          
-          
-          save_tile(paste0(directory,n_,".tif"),x,y,zoom)
-          n_<-n_+1
+        
+        save_tile(paste0(directory,i,".tif"),x,y,zoom)
+        
+        got<-FALSE
+      
         }, error = function(err) {
-          
-          print(err) 
-         # return(0)
-          
-        }) 
         
+        print(err) 
+        # return(0)
         
-       
-      }
+    }) 
+      
+      
+      
+    }
   }
-  
-  
 }
 
-createWindTurbineImages<-function(windTurbines_filtered,directory,zoom=17){
+createWindTurbineImages<-function(windTurbines_filtered,directory,zoom=17,start=1){
   
   dir.create(file.path(".", directory), 
              showWarnings = FALSE)
   
- 
-
-
-  for(i in 1:nrow(windTurbines_filtered)){
-    print(i)
-    x<-windTurbines_filtered$Long[i]
-    y<-windTurbines_filtered$Lat[i]
-    #dev.off()
-    #plot(c(1:100),main=paste0("image",i))
-    #result <- tryCatch({
-      
-      
-      save_tile(paste0(directory,i,".tif"),x,y,zoom)
-    #}, error = function(err) {
-      
-      
-     # return(0)
-      
-    #}) 
-    
-  }
-
+  logfile<-paste0(PATH_TEMP,"out_windturbines.log")
+  
+  unlink(logfile)
+  
+  cl <- makeCluster(4,
+                   outfile=logfile)
+  
+  clusterEvalQ(cl, source("scripts/windturbines/functions.R"))
+  clusterEvalQ(cl, source("scripts/windturbines/00_config.R"))
+  
+  print(paste0("Running in parallel mode. Check ",logfile," for subprocess outputs."))
+  parLapply(
+            cl,
+            start:nrow(windTurbines_filtered),
+            function(i,windTurbines_filtered,directory,zoom){
+              
+              fname<-paste0(directory,i,".tif")
+              
+              print(i)
+              
+              if(!file.exists(fname)){
+                x<-windTurbines_filtered$Long[i]
+                y<-windTurbines_filtered$Lat[i]
+                result <- tryCatch({
+                  
+                         save_tile(fname,x,y,zoom)
+                }, error = function(err) {
+                  
+                  print(err) 
+                  # return(0)
+                  
+                })
+              }
+              },
+            windTurbines_filtered,
+            directory,
+            zoom
+  )
+  # one or more parLapply calls
+  stopCluster(cl)
+  
 }

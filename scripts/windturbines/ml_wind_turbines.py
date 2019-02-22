@@ -6,13 +6,14 @@ Created on Mon Feb 18 13:04:17 2019
 """
 
 import os
-
-os.chdir("G:/Meine Ablage/LVA/PhD Lectures/MachineLearningCourse")
+  
 
 
 t_base_dir='data/windturbines/train'
 v_base_dir='data/windturbines/validation'
 test_base_dir='data/windturbines/test'
+
+
   
 
 

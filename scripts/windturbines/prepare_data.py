@@ -7,23 +7,37 @@ Created on Mon Feb 18 20:30:48 2019
 
 import os, shutil, random
 
+import pandas
+import sys
+import gdal
+
+    
 os.chdir("G:/Meine Ablage/LVA/PhD Lectures/MachineLearningCourse")
+
+
+####read config
+params=pandas.read_csv("config/params.csv")
+
+def get_param(name):
+    val=params.at[0,name]
+    return(val)
+
 
 # The path to the directory where the original
 # dataset was uncompressed
 
 
-t_base_dir='data/windturbines/train'
-v_base_dir='data/windturbines/validation'
+#t_base_dir='data/windturbines/train'
+#v_base_dir='data/windturbines/validation'
 
 
-train_dir='data/windturbines/train/TB'
-test_dir='data/windturbines/test/TB'
-validation_dir='data/windturbines/validation/TB'
+train_dir=get_param("PATH_ML_IMAGES_TURBINES_TRAIN")
+test_dir=get_param("PATH_ML_IMAGES_TURBINES_TEST")
+validation_dir=get_param("PATH_ML_IMAGES_TURBINES_VALIDATION")
 
-train_no_dir='data/windturbines/train/NoTB'
-test_no_dir='data/windturbines/test/NoTB'
-validation_no_dir='data/windturbines/validation/NoTB'
+train_no_dir=get_param("PATH_ML_IMAGES_NOTURBINES_TRAIN")
+test_no_dir=get_param("PATH_ML_IMAGES_NOTURBINES_TEST")
+validation_no_dir=get_param("PATH_ML_IMAGES_NOTURBINES_VALIDATION")
 
 
 #### delete directories if exist
@@ -43,41 +57,55 @@ os.makedirs(train_no_dir)
 os.makedirs(test_no_dir)
 os.makedirs(validation_no_dir)
 
-src_dir_tb='data/testTB_Google'
-src_dir_notb='data/testNoTB_Google'
+src_dir_tb=get_param("PATH_RAW_IMAGES_TURBINES")
+src_dir_notb=get_param("PATH_RAW_IMAGES_NOTURBINES")
 
 
 #### copy turbine images
+#### select subset depending on quality check file
+quality_check=pandas.read_csv(get_param("FILE_QUALITY_CHECK")).dropna(subset=["quality"])
+
+quality_check_sub=quality_check.loc[quality_check['quality']>=90]
+
+nmbfiles=quality_check_sub.shape[0]
+
 cnt = 0
 
-root,dirs,files in os.walk(src_dir_tb)
-nmbfiles=len(files)
+####################TODO: SELECT SUBSECTION DEPENDING ON QUALITY CHECK
+
 share_train=round(0.7*nmbfiles)
 share_validate=round(0.85*nmbfiles)
 
-for root,dirs,files in os.walk(src_dir_tb):
-    for file in files:
+def cop(dst,src):
+    src=src+".tif"
+    dst=dst+".png"
+    gdal.Translate(dst,src)
+    
+    
+    
+for i in range(0,nmbfiles-1):
         cnt+=1
+        file=str(int(quality_check.iloc[i,:].loc["id"]))
         print(file)
         if(cnt<share_train):
             print("train")
             src=os.path.join(src_dir_tb,file)
-            dst=os.path.join(train_dir,"TB"+file)
-            shutil.copyfile(src,dst)
+            dst=os.path.join(train_dir,file)
+            cop(dst,src)
         if(cnt>share_train and cnt<share_validate):
             print("validation")
             src=os.path.join(src_dir_tb,file)
-            dst=os.path.join(validation_dir,"TB"+file)
-            shutil.copyfile(src,dst)
+            dst=os.path.join(validation_dir,file)
+            cop(dst,src)
         if(cnt>share_validate):
             print("test")
             src=os.path.join(src_dir_tb,file)
-            dst=os.path.join(test_dir,"TB"+file)
-            shutil.copyfile(src,dst)
+            dst=os.path.join(test_dir,file)
+            cop(dst,src)
 
 #### copy no-turbine images
             
-root,dirs,files in os.walk(src_dir_notb)
+root,dirs,files = next(os.walk(src_dir_notb))
 nmbfiles=len(files)
 share_train=round(0.7*nmbfiles)
 share_validate=round(0.85*nmbfiles)
@@ -86,22 +114,26 @@ cnt = 0
 for root,dirs,files in os.walk(src_dir_notb):
     for file in files:
         cnt+=1
+        file=file[0:-4]
         print(file)
+        
         if(cnt<share_train):
             print("train")
             src=os.path.join(src_dir_notb,file)
-            dst=os.path.join(train_no_dir,"NoTB"+file)
-            shutil.copyfile(src,dst)
+            dst=os.path.join(train_no_dir,file)
+            cop(dst,src)
         if(cnt>share_train and cnt<share_validate):
             print("validation")
             src=os.path.join(src_dir_notb,file)
-            dst=os.path.join(validation_no_dir,"NoTB"+file)
-            shutil.copyfile(src,dst)
+            dst=os.path.join(validation_no_dir,file)
+            cop(dst,src)
         if(cnt>share_validate):
             print("test")
             src=os.path.join(src_dir_notb,file)
-            dst=os.path.join(test_no_dir,"NoTB"+file)
-            shutil.copyfile(src,dst)
+            dst=os.path.join(test_no_dir,file)
+            cop(dst,src)
+            
+    
 
 print('total training turbine images:', len(os.listdir(train_dir)))
 print('total testing turbine images:', len(os.listdir(test_dir)))
