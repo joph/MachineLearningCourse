@@ -6,15 +6,21 @@ Created on Mon Feb 18 13:04:17 2019
 """
 
 import os
+import pandas
+import sys
   
+os.chdir("G:/Meine Ablage/LVA/PhD Lectures/MachineLearningCourse")
 
+####read config
+params=pandas.read_csv("config/params.csv")
 
-t_base_dir='data/windturbines/train'
-v_base_dir='data/windturbines/validation'
-test_base_dir='data/windturbines/test'
+def get_param(name):
+    val=params.at[0,name]
+    return(val)
 
-
-  
+t_base_dir=get_param("PATH_ML_IMAGES_TURBINES_TRAIN")+"../"
+v_base_dir=get_param("PATH_ML_IMAGES_TURBINES_VALIDATION")+"../"
+test_base_dir=get_param("PATH_ML_IMAGES_TURBINES_TEST")+"../"
 
 
 from keras import layers
@@ -26,11 +32,11 @@ model = models.Sequential()
 model.add(layers.Conv2D(32, (3, 3), activation='relu',
                         input_shape=(256, 256, 3)))
 model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.Conv2D(32, (3, 3), activation='relu'))
+model.add(layers.MaxPooling2D((2, 2)))
 model.add(layers.Conv2D(64, (3, 3), activation='relu'))
 model.add(layers.MaxPooling2D((2, 2)))
-model.add(layers.Conv2D(128, (3, 3), activation='relu'))
-model.add(layers.MaxPooling2D((2, 2)))
-model.add(layers.Conv2D(128, (3, 3), activation='relu'))
+model.add(layers.Conv2D(64, (3, 3), activation='relu'))
 model.add(layers.MaxPooling2D((2, 2)))
 model.add(layers.Flatten())
 model.add(layers.Dropout(0.5))
@@ -88,7 +94,7 @@ history = model.fit_generator(
       validation_data=validation_generator,
       validation_steps=50)
 
-model.save('turbines.h5')
+model.save('turbines1.h5')
 
 
 import matplotlib.pyplot as plt

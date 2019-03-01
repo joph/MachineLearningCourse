@@ -110,13 +110,17 @@ remove_erroneous_data<-function(wind_turbines){
 ###input: long and lat coordinates of all turbines in the park and the parkname
 ###as sideeffect a new shapefile with the name of the windpark is created in the subdirectory
 ###GIS
-calculateHull<-function(Long,Lat,Park){
+calculateHull<-function(Long,Lat,Park,directory){
   
-  print(paste(Park[1],"with",length(Long),"Turbines"))
+  print(paste(Park[1],
+              "with",
+              length(Long),
+              "Turbines"))
   coords<-NULL
   
   
   dat<-data.frame(Long,Lat)
+  
   
   if(length(Long)<3){
     if(length(Long)==1){
@@ -174,7 +178,58 @@ calculateHull<-function(Long,Lat,Park){
   # set coordinate reference system with SpatialPolygons(..., proj4string=CRS(...))
   # e.g. CRS("+proj=longlat +datum=WGS84")
   sp_poly_df <- SpatialPolygonsDataFrame(sp_poly, data=data.frame(ID=1))
-  writeOGR(sp_poly_df, "data/parks/", layer=Park[1], driver="ESRI Shapefile",overwrite_layer=TRUE)
+  setwd(getwd())
+  writeOGR(sp_poly_df, paste0(directory,Park[1],".shp"), layer=Park[1], driver="ESRI Shapefile",overwrite_layer=TRUE)
+  return(0)
+}
+
+
+shapeAllTurbines<-function(Long,Lat,Park,directory){
+  
+  print(paste(Park[1],
+              "with",
+              length(Long),
+              "Turbines"))
+  
+  sub_union<-NULL
+  
+  for(i in 1:length(Long)){
+    square<-data.frame(x=c(Long[i]-0.002,
+                           Long[i]-0.002,
+                           Long[i]+0.002,
+                           Long[i]+0.002),
+                        y=c(Lat[i]+0.002,
+                            Lat[i]-0.002,
+                            Lat[i]-0.002,
+                            Lat[i]+0.002))
+    
+    
+    sp_poly <- SpatialPolygons(list(Polygons(list(Polygon(square)), ID=1)),proj4string=CRS("+proj=longlat +datum=WGS84"))
+    # set coordinate reference system with SpatialPolygons(..., proj4string=CRS(...))
+    # e.g. CRS("+proj=longlat +datum=WGS84")
+    sp_poly_df <- SpatialPolygonsDataFrame(sp_poly, data=data.frame(ID=1))
+    if(is.null(sub_union)){
+      sub_union<-sp_poly_df
+    }else{
+      names(sp_poly_df)=paste0("ID",i)
+      sub_union<-union(sub_union,sp_poly_df)
+    }
+    
+    
+    
+    
+  }
+ 
+  
+  #pdf(paste("data/pdfsConvexHull/",Park[1],".pdf",sep=""))
+  #plot(dat, pch=19)
+  #lines(coords, col="red")
+  #dev.off()
+  setwd(getwd())
+  writeOGR(sub_union, paste0(directory,Park[1],".shp"), layer=Park[1], driver="ESRI Shapefile",overwrite_layer=TRUE)
+  
+  
+  
   return(0)
 }
 
@@ -307,7 +362,7 @@ createNonWindTurbineImagesRandom<-function(windTurbines_filtered,
     
     
   }else{
-    windTurbines_filtered %>% group_by(Park) %>% dplyr::summarize(s=calculateHull(Long,Lat,Park))
+    windTurbines_filtered %>% group_by(Park) %>% dplyr::summarize(s=shapeAllTurbines(Long,Lat,Park,PATH_WINDPARK_LOCATIONS))
     files<-list.files(path = shapeLoc,pattern="shp")
     
     subs_union<-readOGR(paste0(shapeLoc,files[1]))
@@ -320,7 +375,7 @@ createNonWindTurbineImagesRandom<-function(windTurbines_filtered,
     
     }
     #subs_union<-spTransform(subs_union,projection)  
-    writeOGR(subs_union, shapeLoc, layer="union_parks", driver="ESRI Shapefile",overwrite_layer=TRUE)
+    writeOGR(subs_union, paste0(shapeLoc,"union_parks.shp"), layer="union_parks", driver="ESRI Shapefile",overwrite_layer=TRUE)
     
     
   }

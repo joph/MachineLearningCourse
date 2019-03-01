@@ -79,30 +79,32 @@ share_validate=round(0.85*nmbfiles)
 def cop(dst,src):
     src=src+".tif"
     dst=dst+".png"
-    gdal.Translate(dst,src)
-    
+    if(not os.path.isfile(dst)): 
+        try:
+            gdal.Translate(dst,src)
+        except:
+            print("gdal error")
     
     
 for i in range(0,nmbfiles-1):
         cnt+=1
         file=str(int(quality_check_sub.iloc[i,:].loc["id"]))
         print(file)
-        if(os.path.isfile(file)):
+        src=os.path.join(src_dir_tb,file)
+        print(src+".tif")
+        if(os.path.isfile(src+".tif")):     
             if(cnt<share_train):
                 print("train")
-                src=os.path.join(src_dir_tb,file)
                 dst=os.path.join(train_dir,file)
                 cop(dst,src)
-                if(cnt>share_train and cnt<share_validate):
-                    print("validation")
-                    src=os.path.join(src_dir_tb,file)
-                    dst=os.path.join(validation_dir,file)
-                    cop(dst,src)
-                    if(cnt>share_validate):
-                        print("test")
-                        src=os.path.join(src_dir_tb,file)
-                        dst=os.path.join(test_dir,file)
-                        cop(dst,src)
+            if(cnt>share_train and cnt<share_validate):
+                print("validation")
+                dst=os.path.join(validation_dir,file)
+                cop(dst,src)
+            if(cnt>share_validate):
+                 print("test")
+                 dst=os.path.join(test_dir,file)
+                 cop(dst,src)
 
 #### copy no-turbine images
             

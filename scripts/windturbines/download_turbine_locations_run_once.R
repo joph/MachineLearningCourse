@@ -8,16 +8,16 @@ COUNTRY="AT"
 
 
 
-TURBINE_LOCATIONS_PATH=paste0(
+PATH_TURBINE_LOCATIONS=paste0(
   "data/turbineLocations",
   "/",
   COUNTRY,"/")
 
-TURBINE_LOCATIONS_FILE=paste0(
+FILE_TURBINE_LOCATIONS=paste0(
   TURBINE_LOCATIONS_PATH,
   "windturbineLocations.csv")
 
-dir.create(TURBINE_LOCATIONS_PATH,
+dir.create(PATH_TURBINE_LOCATIONS,
            recursive=TRUE,
            showWarnings = FALSE)
 
@@ -30,19 +30,20 @@ windTurbines<-importAndSaveIGWindData(TURBINE_LOCATIONS_FILE) %>%
 ###### BRAZIL Wind turbine locations - update table to incorporate KW Column
 COUNTRY="BR"
 
-TURBINE_LOCATIONS_PATH=paste0(
+PATH_TURBINE_LOCATIONS=paste0(
   "data/turbineLocations",
   "/",
   COUNTRY,"/")
 
-TURBINE_LOCATIONS_FILE=paste0(
-  TURBINE_LOCATIONS_PATH,
+FILE_TURBINE_LOCATIONS=paste0(
+  PATH_TURBINE_LOCATIONS,
   "windturbineLocations.csv")
 
-dir.create(TURBINE_LOCATIONS_PATH,
+dir.create(PATH_TURBINE_LOCATIONS,
            recursive=TRUE,
            showWarnings = FALSE)
 
-windTurbines<-read_csv(TURBINE_LOCATIONS_FILE) %>% 
+windTurbines<-read_csv(paste0(FILE_TURBINE_LOCATIONS,".all")) %>% 
   mutate(KW=POT_MW*1000,Park=CEG)
+
 write_csv(windTurbines,TURBINE_LOCATIONS_FILE)  

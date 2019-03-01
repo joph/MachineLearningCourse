@@ -1,5 +1,7 @@
 ################## This is a small tool to manually rate the quality of the downloaded fotos
 
+library(gtools)
+
 input_dir<-PATH_RAW_IMAGES_TURBINES
 
 files<-list.files(input_dir) %>% mixedsort()
@@ -8,17 +10,19 @@ n<-length(files)
 
 quality_check<-NULL
 
+filename<-FILE_QUALITY_CHECK
+
 if(file.exists(filename)){
  
    quality_check<-read_csv(filename)
 
    }else{
   
-    windTurbines<-read_csv(TURBINE_LOCATIONS_FILE)
+    windTurbines<-read_csv(FILE_TURBINE_LOCATIONS)
 
     quality_check<-windTurbines %>% 
       filter(KW>FILTER_WINDTURBINES_KW) %>% 
-      mutate(id=1:n(),quality=rep(NA,n()))
+      mutate(id=1:n(),quality=rep(100,n()))
 }
 
 for(i in 1:n){

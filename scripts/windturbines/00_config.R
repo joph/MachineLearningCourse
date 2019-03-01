@@ -4,7 +4,7 @@ source("scripts/windturbines/functions.R")
 
 SOURCE<-"Google"
 RESOLUTION<-19
-COUNTRY<-"AT"
+COUNTRY<-"BR"
 
 FILTER_WINDTURBINES_KW<-1000
 
@@ -33,6 +33,11 @@ PATH_RAW_IMAGES_NOTURBINES<-paste0("data/aerialImages/",
                                  PATH_EXPERIMENT,
                                  "raw/NoTurbines/")
 
+PATH_RAW_IMAGES_TURBINES_MACHINE_CLASSIFIED<-paste0("data/aerialImages/",
+                                 PATH_EXPERIMENT,
+                                 "classified/Turbines/")
+
+
 
 
 PATH_WINDPARK_LOCATIONS<-paste0(
@@ -48,7 +53,9 @@ PATH_TEMP<-"data/temp/"
 PATH_LOCAL_TEMP<-"c:/temp/"
 
 
-
+PATH_QUALITYCHECK<-paste0(
+  "qualityCheck/",
+  PATH_EXPERIMENT)
 
 FILE_QUALITY_CHECK<-paste0(
   "qualityCheck/",
@@ -106,7 +113,9 @@ paths<-data.frame(
          PATH_ML_IMAGES_TURBINES_TEST,
          PATH_ML_IMAGES_NOTURBINES_TRAIN,
          PATH_ML_IMAGES_NOTURBINES_VALIDATION,
-         PATH_ML_IMAGES_NOTURBINES_TEST
+         PATH_ML_IMAGES_NOTURBINES_TEST,
+         PATH_QUALITYCHECK,
+         PATH_RAW_IMAGES_TURBINES_MACHINE_CLASSIFIED
          )
 
 sapply(unlist(paths),
