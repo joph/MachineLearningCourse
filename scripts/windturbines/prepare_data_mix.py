@@ -12,6 +12,7 @@ import sys
 import gdal
 import imp
 
+
 os.chdir("G:/Meine Ablage/LVA/PhD Lectures/MachineLearningCourse")
 
 import scripts.windturbines.functions_pattern_recognition as fpr
@@ -20,7 +21,7 @@ from scripts.windturbines.functions_pattern_recognition import get_param
 from scripts.windturbines.functions_pattern_recognition import cop_predict
 from scripts.windturbines.functions_pattern_recognition import check_image
 from scripts.windturbines.functions_pattern_recognition import read_params
-from scripts.windturbines.functions_pattern_recognition import cop
+
 
 # The path to the directory where the original
 # dataset was uncompressed
@@ -62,7 +63,7 @@ src_dir_notb = get_param(COUNTRY,"PATH_RAW_IMAGES_NOTURBINES")
 
 #### copy turbine images
 #### select subset depending on quality check file
-quality_check = pandas.read_csv(get_param(COUNTRY,"FILE_QUALITY_CHECK")).dropna(subset=["quality"])
+quality_check = pd.read_csv(get_param(COUNTRY,"FILE_QUALITY_CHECK")).dropna(subset=["quality"])
 
 quality_check_sub = quality_check.loc[quality_check['quality']>=90]
 
@@ -75,38 +76,35 @@ cnt = 0
 share_train=round(0.7*nmbfiles)
 share_validate=round(0.85*nmbfiles)
 
-source_ext = ".png"
-
 for i in range(0,nmbfiles-1):
     cnt+=1
+    print(cnt)
     #file=str(int(quality_check_sub.iloc[i,:].loc["id"]))
-    file=quality_check_sub.iloc[i,:].loc["id"][:-4]
+    file=quality_check_sub.iloc[i,:].loc["id"]
     
-    print(file)
-    src_=os.path.join(src_dir_tb,file)+source_ext
+    #print(file)
+    src_=os.path.join(src_dir_tb,file)
     print(src_)
     if(os.path.isfile(src_)):
         if(cnt<share_train):
             print("train")
             src=os.path.join(src_dir_tb,file)
             dst=os.path.join(train_dir,file)
-            cop(dst,src,source_ext)
+            shutil.copyfile(src,dst)
         if(cnt>share_train and cnt<share_validate):
             print("validation")
             src=os.path.join(src_dir_tb,file)
             dst=os.path.join(validation_dir,file)
-            cop(dst,src,source_ext)
+            shutil.copyfile(src,dst)
         if(cnt>share_validate):
             print("test")
             src=os.path.join(src_dir_tb,file)
             dst=os.path.join(test_dir,file)
-            cop(dst,src,source_ext)
-
+            shutil.copyfile(src,dst)
+            
     #### copy no-turbine images
 
-#root,dirs,files = next(os.walk(src_dir_notb))
-
-files = [x for x in os.listdir(src_dir_notb) if (x.endswith(source_ext))]
+files = [x for x in os.listdir(src_dir_notb) if x.endswith(".png")]
 
 nmbfiles=len(files)
 share_train=round(0.7*nmbfiles)
@@ -115,30 +113,33 @@ share_validate=round(0.85*nmbfiles)
 cnt = 0
 for file in files:
     cnt+=1
-    file=file[0:-4]
+    #file=file[0:-4]
     print(file)
 
     if(cnt<share_train):
         print("train")
         src=os.path.join(src_dir_notb,file)
         dst=os.path.join(train_no_dir,file)
-        cop(dst,src,source_ext)
+        shutil.copyfile(src,dst)
+            
     if(cnt>share_train and cnt<share_validate):
         print("validation")
         src=os.path.join(src_dir_notb,file)
         dst=os.path.join(validation_no_dir,file)
-        cop(dst,src,source_ext)
+        shutil.copyfile(src,dst)
+            
     if(cnt>share_validate):
         print("test")
         src=os.path.join(src_dir_notb,file)
         dst=os.path.join(test_no_dir,file)
-        cop(dst,src,source_ext)
+        shutil.copyfile(src,dst)
+            
 
 
 
-print('total training turbine images:', len(os.listdir(train_dir))/2)
-print('total testing turbine images:', len(os.listdir(test_dir))/2)
-print('total validation turbine images:', len(os.listdir(validation_dir))/2)
-print('total training no-turbine images:', len(os.listdir(train_no_dir))/2)
-print('total testing no-turbine images:', len(os.listdir(test_no_dir))/2)
-print('total validation no-turbine images:', len(os.listdir(validation_no_dir))/2)
+print('total training turbine images:', len(os.listdir(train_dir)))
+print('total testing turbine images:', len(os.listdir(test_dir)))
+print('total validation turbine images:', len(os.listdir(validation_dir)))
+print('total training no-turbine images:', len(os.listdir(train_no_dir)))
+print('total testing no-turbine images:', len(os.listdir(test_no_dir)))
+print('total validation no-turbine images:', len(os.listdir(validation_no_dir)))

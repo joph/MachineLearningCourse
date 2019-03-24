@@ -1,7 +1,7 @@
 /data/
-/GIS/
-/GRASS_TEMP/
-/site-characteristics/
+/sessions/
+/models/
+/presentations/
 
 *.shp
 *.dbf
@@ -9,3 +9,5 @@
 *.qpj
 *.shx
 *.h5
+*.jp2
+

@@ -11,16 +11,22 @@ import sys
   
 os.chdir("G:/Meine Ablage/LVA/PhD Lectures/MachineLearningCourse")
 
-####read config
-params=pandas.read_csv("config/params.csv")
+import imp
 
-def get_param(name):
-    val=params.at[0,name]
-    return(val)
+import scripts.windturbines.functions_pattern_recognition as fpr
+imp.reload(fpr)
+from scripts.windturbines.functions_pattern_recognition import get_param
+from scripts.windturbines.functions_pattern_recognition import cop_predict
+from scripts.windturbines.functions_pattern_recognition import check_image
+from scripts.windturbines.functions_pattern_recognition import read_params
+from scripts.windturbines.functions_pattern_recognition import load
+from scripts.windturbines.functions_pattern_recognition import assess_windparks_country
 
-t_base_dir=get_param("PATH_ML_IMAGES_TURBINES_TRAIN")+"../"
-v_base_dir=get_param("PATH_ML_IMAGES_TURBINES_VALIDATION")+"../"
-test_base_dir=get_param("PATH_ML_IMAGES_TURBINES_TEST")+"../"
+COUNTRY = "MIX"
+
+t_base_dir=get_param(COUNTRY, "PATH_ML_IMAGES_TURBINES_TRAIN")+"../"
+v_base_dir=get_param(COUNTRY, "PATH_ML_IMAGES_TURBINES_VALIDATION")+"../"
+test_base_dir=get_param(COUNTRY, "PATH_ML_IMAGES_TURBINES_TEST")+"../"
 
 
 from keras import layers
@@ -53,6 +59,7 @@ model.compile(loss='binary_crossentropy',
 
 
 from keras.preprocessing.image import ImageDataGenerator
+from keras.callbacks import ModelCheckpoint
 
 # All images will be rescaled by 1./255
 train_datagen = ImageDataGenerator(
@@ -87,14 +94,33 @@ for data_batch, labels_batch in train_generator:
     print('labels batch shape:', labels_batch.shape)
     break
 
+mcp_save = ModelCheckpoint('models/model-{epoch:04d}-{val_loss:.2f}.h5', save_best_only=True, monitor='val_loss', mode='min')
+
+
+# and to load the session again:
+#dill.load_session(filename)
+
 history = model.fit_generator(
       train_generator,
       steps_per_epoch=100,
       epochs=30,
       validation_data=validation_generator,
+      callbacks=[mcp_save],
       validation_steps=50)
 
-model.save('turbines1.h5')
+#model.save('turbines1.h5')
+
+import pickle#pip install dill --user
+filename = 'sessions/history_save.pkl'
+outfile = open(filename,'wb')
+
+pickle.dump(history,outfile)
+outfile.close()
+
+infile = open(filename,'rb')
+history = pickle.load(infile)
+infile.close() 
+#dill.load_session(filename)
 
 
 import matplotlib.pyplot as plt
@@ -206,12 +232,54 @@ plt.legend()
 
 plt.show()
 
+######################### Part III: Pretrained model, unfreezing layers #########################
+
+conv_base.trainable = True
+
+set_trainable = False
+for layer in conv_base.layers:
+    if layer.name == 'block5_conv1':
+        set_trainable = True
+    if set_trainable:
+        layer.trainable = True
+    else:
+        layer.trainable = False
+        
+model.compile(loss='binary_crossentropy',
+              optimizer=optimizers.RMSprop(lr=1e-5),
+              metrics=['acc'])
+
+mcp_save = ModelCheckpoint('models/unfreezed-model-{epoch:04d}-{val_loss:.2f}.h5', save_best_only=True, monitor='val_loss', mode='min')
 
 
+history = model.fit_generator(
+      train_generator,
+      steps_per_epoch=100,
+      epochs=30,
+      validation_data=validation_generator,
+      callbacks=[mcp_save],
+      validation_steps=50)
 
 
+acc = history.history['acc']
+val_acc = history.history['val_acc']
+loss = history.history['loss']
+val_loss = history.history['val_loss']
 
+epochs = range(len(acc))
 
+plt.plot(epochs, acc, 'bo', label='Training acc')
+plt.plot(epochs, val_acc, 'b', label='Validation acc')
+plt.title('Training and validation accuracy')
+plt.legend()
 
+plt.figure()
+
+plt.plot(epochs, loss, 'bo', label='Training loss')
+plt.plot(epochs, val_loss, 'b', label='Validation loss')
+plt.title('Training and validation loss')
+plt.legend()
+
+plt.show()
 
 

@@ -109,6 +109,10 @@ for i in range(0,nmbfiles-1):
 #### copy no-turbine images
             
 root,dirs,files = next(os.walk(src_dir_notb))
+
+files = [x for x in os.listdir(src_dir_notb) if x.endswith(".tif")]
+
+
 nmbfiles=len(files)
 share_train=round(0.7*nmbfiles)
 share_validate=round(0.85*nmbfiles)

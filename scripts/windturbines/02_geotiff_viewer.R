@@ -2,7 +2,10 @@
 
 library(gtools)
 
-input_dir<-PATH_RAW_IMAGES_TURBINES
+CURRENT_COUNTRY<-"AT"
+
+input_dir<-get_param(CURRENT_COUNTRY,
+                     "PATH_RAW_IMAGES_TURBINES")
 
 files<-list.files(input_dir) %>% mixedsort()
 
@@ -10,7 +13,8 @@ n<-length(files)
 
 quality_check<-NULL
 
-filename<-FILE_QUALITY_CHECK
+filename<-get_param(CURRENT_COUNTRY,
+                    "FILE_QUALITY_CHECK")
 
 if(file.exists(filename)){
  
@@ -18,10 +22,12 @@ if(file.exists(filename)){
 
    }else{
   
-    windTurbines<-read_csv(FILE_TURBINE_LOCATIONS)
+    windTurbines<-read_csv(get_param(CURRENT_COUNTRY,
+                                     "FILE_TURBINE_LOCATIONS"))
 
     quality_check<-windTurbines %>% 
-      filter(KW>FILTER_WINDTURBINES_KW) %>% 
+      filter(KW>get_param(CURRENT_COUNTRY,
+                          "FILTER_WINDTURBINES_KW")) %>% 
       mutate(id=1:n(),quality=rep(100,n()))
 }
 

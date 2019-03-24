@@ -190,7 +190,7 @@ shapeAllTurbines<-function(Long,Lat,Park,directory){
               "with",
               length(Long),
               "Turbines"))
-  
+  if(!file.exists(paste0(directory,Park[1],".shp"))){
   sub_union<-NULL
   
   for(i in 1:length(Long)){
@@ -210,9 +210,12 @@ shapeAllTurbines<-function(Long,Lat,Park,directory){
     sp_poly_df <- SpatialPolygonsDataFrame(sp_poly, data=data.frame(ID=1))
     if(is.null(sub_union)){
       sub_union<-sp_poly_df
+      sub_union$ID<-1
     }else{
-      names(sp_poly_df)=paste0("ID",i)
-      sub_union<-union(sub_union,sp_poly_df)
+      names(sp_poly_df)=paste0("ID")
+      sp_poly_df$ID=i
+      
+       sub_union<-bind(sub_union,sp_poly_df)
     }
     
     
@@ -221,15 +224,9 @@ shapeAllTurbines<-function(Long,Lat,Park,directory){
   }
  
   
-  #pdf(paste("data/pdfsConvexHull/",Park[1],".pdf",sep=""))
-  #plot(dat, pch=19)
-  #lines(coords, col="red")
-  #dev.off()
   setwd(getwd())
   writeOGR(sub_union, paste0(directory,Park[1],".shp"), layer=Park[1], driver="ESRI Shapefile",overwrite_layer=TRUE)
-  
-  
-  
+  }
   return(0)
 }
 
@@ -291,30 +288,40 @@ save_tile<-function(file,lon,lat,zoom){
   for(i in -1:1){
     for(j in -1:1){
       #print(i)
-      url<-paste0("http://mt0.google.com/vt/lyrs=s&hl=en&x=",cols+i,"&y=",rows+j,"&z=",zoom,"")
-      #print(url)
-      f<-paste0(temp,prefix,cnt,".jpg")
-      download.file(url, f, mode = "wb",quiet=TRUE)
-     
       
+      url<-url_source(cols+i,
+                      rows+j,
+                      zoom)
+      
+      print(url)
+      f<-paste0(temp,prefix,cnt,".jpg")
+
+      download.file(url, f, mode = "wb",quiet=TRUE)
+
       img<-brick(f)
-      coords<-tile2Coords(cols+i,rows+j,zoom)
+      
+      
+     
+      coords<-tile2Coords(cols+i,rows+j,as.numeric(zoom))
+      print("4")
+      
       #print(coords)
       xmin(img) <- coords[1] 
       xmax(img) <- coords[2] 
       ymin(img) <- coords[3]
       ymax(img) <- coords[4]
       crs(img) <- CRS("+init=epsg:4326")
+
       f<-paste0(temp,prefix,cnt,".tif")
       writeRaster(img,f)
-      
-      cnt<-cnt+1
+
+            cnt<-cnt+1
 
       }
       
   }
-  
-  files<-paste0(temp,prefix,1:9,".tif")
+
+    files<-paste0(temp,prefix,1:9,".tif")
   all_raster<-sapply(files,brick)
   fin<-all_raster[[1]]
   for(i in 2:9){
@@ -322,6 +329,7 @@ save_tile<-function(file,lon,lat,zoom){
   }
 
   files_jpg<-paste0(temp,prefix,1:9,".jpg")
+  
   
   unlink(files)
   unlink(files_jpg)
@@ -336,11 +344,9 @@ save_tile<-function(file,lon,lat,zoom){
   ras <- resample(fin, s, method = 'bilinear')
   
   #plotRGB(ras)
-  
   #print(file)
   #print(ras)
-  writeRaster(ras,file)
-  
+  writeRaster(ras,file,overwrite=TRUE)
 }
   
   
@@ -369,8 +375,8 @@ createNonWindTurbineImagesRandom<-function(windTurbines_filtered,
     for(i in 1:length(files)){
       print(i)
       subs <- readOGR(paste0(shapeLoc,files[i]))
-      names(subs)=paste0("ID",i)
-      subs_union<-union(subs_union,subs)
+      #names(subs)=paste0("ID",i)
+      subs_union<-bind(subs_union,subs)
     
     
     }
@@ -392,7 +398,7 @@ createNonWindTurbineImagesRandom<-function(windTurbines_filtered,
   logfile<-logfile<-paste0(PATH_TEMP,"out_NoWindturbines.log")
   
   unlink(logfile)
-  cl <- makeCluster(4,
+  cl <- makeCluster(2,
                     outfile=logfile)
   
   clusterEvalQ(cl, source("scripts/windturbines/functions.R"))
@@ -400,7 +406,10 @@ createNonWindTurbineImagesRandom<-function(windTurbines_filtered,
   
   print(paste0("Running in parallel mode. Check ",logfile," for subprocess outputs."))
   
-  parLapply(cl,
+  #parLapply(cl,
+  
+  parLapply(   cl,
+  #sapply(   
             1:n,
             getOneRandomTileNoTurbine,
             directory,
@@ -423,8 +432,11 @@ createNonWindTurbineImagesRandom<-function(windTurbines_filtered,
 getOneRandomTileNoTurbine<-function(i,directory,subs_union,minX,maxX,minY,maxY,zoom){
     print(i)
   
+    if(file.exists(paste0(directory,i,".tif"))){
+      return()
+    }
+  
     got<-TRUE
-    
     while(got){
   
       x<-minX+runif(1)*(maxX-minX)
@@ -436,8 +448,12 @@ getOneRandomTileNoTurbine<-function(i,directory,subs_union,minX,maxX,minY,maxY,z
       points<-as(points, "SpatialPoints")
       points<-spTransform(points,projection(subs_union))
     
-      points_buffer<-gBuffer(points[1,],width=160,capStyle="SQUARE")
-    
+      points_buffer<-gBuffer(points[1,],width=0.01,capStyle="SQUARE")
+      proj4string(points_buffer)<-proj4string(points)
+      #plot(subs_union)
+      #plot(points,add=TRUE,col="red")
+      #plot(points_buffer,add=TRUE)
+        
     if(!gIntersects(points_buffer,subs_union)){
       
       result <- tryCatch({
@@ -507,3 +523,89 @@ createWindTurbineImages<-function(windTurbines_filtered,directory,zoom=17,start=
   stopCluster(cl)
   
 }
+
+get_param<-function(country,param_name){
+  return(all_params[[country]][param_name] %>% unlist() %>% as.character())
+}
+
+
+
+
+doSinglePark<-function(name,
+                       lat,
+                       lon,
+                       resolution,
+                       country,
+                       size=0.013,
+                       inc=0.0014){
+  
+  
+  min_lon<-round(lon-size,2)
+  min_lat<-round(lat-size,2)
+  max_lon<-round(lon+size,2)
+  max_lat<-round(lat+size,2)
+  
+  
+  zoom<-resolution
+  
+  path<-get_param(country,"PATH_RAW_IMAGES_ASSESSMENT")
+  
+  path<-paste0(path,name,"/")
+  
+  dir.create(path,showWarnings=FALSE)
+  
+  seq_lon<-seq(min_lon,max_lon,by=inc)
+  seq_lat<-seq(min_lat,max_lat,by=inc)
+  
+  grid<-expand.grid(seq_lon,seq_lat)
+  
+  print(paste0("Nmb downloads: ",nrow(grid)))
+  
+  logfile<-logfile<-paste0(PATH_TEMP,"out_turbineAssessment.log")
+  
+  unlink(logfile)
+  
+  cl <- makeCluster(3,
+                    outfile=logfile)
+  
+  clusterEvalQ(cl, source("scripts/windturbines/functions.R"))
+  clusterEvalQ(cl, source("scripts/windturbines/00_config.R"))
+  
+  print(paste0("Running in parallel mode. Check ",logfile," for subprocess outputs."))
+  
+  #parLapply(cl,
+  
+  parLapply(   cl,
+  #             sapply(   
+               1:nrow(grid),
+               function(i,grid,path,zoom){
+                 lon_ind<-grid[i,1]
+                 lat_ind<-grid[i,2]
+                 
+                 
+                 result <- tryCatch({
+                   
+                   file<-paste0(path,round(lon_ind,4),"_",round(lat_ind,4),".tif")
+                   file.remove(file)
+                   save_tile(file,lon_ind,lat_ind,zoom)
+                   
+                 }, error = function(err) {
+                   
+                   print(err) 
+                   # return(0)
+                   
+                 })
+                
+               },
+               grid,
+               path,
+               zoom
+  )
+  # one or more parLapply calls
+  stopCluster(cl)
+  
+}
+#batch_gdal_translate(infiles, outdir, outsuffix = "_conv.tif",
+#                     pattern = NULL, recursive = FALSE, verbose = FALSE, ...)
+
+
