@@ -66,8 +66,8 @@ importAndSaveIGWindData<-function(fileName){
   wind_turbines<-wind_turbines %>% mutate(Nabenhoehe=as.numeric(Nabenhoehe),Rotordurchmesser=as.numeric(Rotordurchmesser))
   
   ###remove long/lat duplicates
-  longlat<-windTurbines %>% mutate(n=1:n()) %>% dplyr::select(Long,Lat,n)
-  windTurbines_filtered<-windTurbines %>% 
+  longlat<-wind_turbines %>% mutate(n=1:n()) %>% dplyr::select(Long,Lat,n)
+  windTurbines_filtered<-wind_turbines %>% 
     filter(!(row_number() %in% longlat[duplicated(longlat[,1:2]),]$n)) 
   
   
@@ -291,7 +291,9 @@ save_tile<-function(file,lon,lat,zoom){
       
       url<-url_source(cols+i,
                       rows+j,
-                      zoom)
+                      zoom,
+                      get_param(CURRENT_COUNTRY,
+                                "SOURCE"))
       
       print(url)
       f<-paste0(temp,prefix,cnt,".jpg")

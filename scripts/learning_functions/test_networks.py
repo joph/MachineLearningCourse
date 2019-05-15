@@ -14,6 +14,7 @@ from importlib import reload
 
 #https://en.wikipedia.org/wiki/Universal_approximation_theorem
 #https://tryolabs.com/blog/2018/12/19/major-advancements-deep-learning-2018/
+#https://www.sciencedirect.com/science/article/pii/S2542435118305701
 
 x = np.random.random(10000)*10
 y1 = x 

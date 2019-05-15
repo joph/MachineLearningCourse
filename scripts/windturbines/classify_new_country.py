@@ -17,7 +17,6 @@ from keras.preprocessing import image
 import numpy as np
 import gdal
 from PIL import Image
-import numpy as np
 from skimage import transform
 
 from matplotlib.pyplot import imshow
@@ -25,7 +24,9 @@ from matplotlib.pyplot import imshow
 import imp
 
 
-
+#scikit-image
+#PIL
+#gdal
 
 from keras.preprocessing.image import ImageDataGenerator
 
@@ -43,7 +44,9 @@ from scripts.windturbines.functions_pattern_recognition import read_params
 ######predict
 ######if classified, copy
 
-model = models.load_model('models/unfreezed-model-0056-0.01.h5')
+
+model = models.load_model('models/unfreezed-model-0005-0.02.h5')
+#model = models.load_model('models/unfreezed-model-0056-0.01.h5')
 
 list_errors = []
 

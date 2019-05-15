@@ -4,18 +4,34 @@ source("scripts/windturbines/functions.R")
 
 ###belgium should work...
 
-SOURCE<-"Basemap"
-url_source<-function(x,y,z){
+SOURCE<-"GOOGLE"
+url_source<-function(x,y,z,SOURCE){
+
+  url<-""
+    
+  if(SOURCE=="GOOGLE"){
+    url<-paste0("http://mt0.google.com/vt/lyrs=s&hl=en&x=",x,"&y=",y,"&z=",z,"")
+    
+    
+  }
   
-  #GOOGLE  
-  #return(paste0("http://mt0.google.com/vt/lyrs=s&hl=en&x=",x,"&y=",y,"&z=",z,""))
-
-  #BASEMAP  
-  return(paste0("https://maps2.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/",z,"/",y,"/",x,".jpeg"))
-
+  
+  if(SOURCE=="BASEMAP"){
+    url<-paste0("https://maps2.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/",z,"/",y,"/",x,".jpeg")
+    
+  }
+  
+  if(SOURCE=="MAPBOX"){
+    url<-paste0("http://a.tiles.mapbox.com/v4/mapbox.satellite/",z,"/",x,"/",y,".jpg?access_token=pk.eyJ1Ijoiam9waCIsImEiOiJjanZnNXF0YXUwNDlkNDNvYzZnbXUzNnp6In0.RimB9gchYB7XlfyB5ACvXA")
+  }
+  
+  
+  
+  return(url)
+  
   
 }
-  
+
 
 RESOLUTION<-19
 COUNTRY_LIST<-c("CN","DE","FR","AT","BR","MIX","GLOBAL")
@@ -51,16 +67,16 @@ for(COUNTRY in COUNTRY_LIST){
                                      "raw/NoTurbines/")
   
   PATH_RAW_IMAGES_TURBINES_MACHINE_CLASSIFIED<-paste0("data/aerialImages/",
-                                   PATH_EXPERIMENT,
-                                   "classified/Turbines/")
+                                                      PATH_EXPERIMENT,
+                                                      "classified/Turbines/")
   
   PATH_RAW_IMAGES_NOTURBINES_MACHINE_CLASSIFIED<-paste0("data/aerialImages/",
-                                     PATH_EXPERIMENT,
-                                     "classified/NoTurbines/")
+                                                        PATH_EXPERIMENT,
+                                                        "classified/NoTurbines/")
   
   PATH_RAW_IMAGES_ASSESSMENT<-paste0("data/aerialImages/",
-                                   PATH_EXPERIMENT,
-                                   "assessment/")
+                                     PATH_EXPERIMENT,
+                                     "assessment/")
   
   #PATH_RAW_IMAGES_ASSESSMENT_TURBINES<-paste0("data/aerialImages/",
   #                                   PATH_EXPERIMENT,
@@ -171,5 +187,3 @@ for(COUNTRY in COUNTRY_LIST){
 }
 
 CURRENT_COUNTRY<-"BR"
-
-

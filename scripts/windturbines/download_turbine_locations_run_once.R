@@ -1,5 +1,6 @@
 #### RUN ONCE TO DOWNLOAD AND UPDATE DATA FOR BRAZIL/AUSTRIA
 base_dir<-("G:/Meine Ablage/LVA/PhD Lectures/MachineLearningCourse")
+setwd(base_dir)
 source("scripts/windturbines/functions.R")
 
 

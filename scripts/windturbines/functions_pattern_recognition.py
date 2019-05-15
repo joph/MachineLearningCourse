@@ -25,10 +25,16 @@ from keras import backend as K
 from keras import models
 from keras.preprocessing import image
 
+from pathlib import Path
+
 import cv2
 
 def read_params():
-    files = [x for x in os.listdir("config/") if (x.endswith(".csv") and x.startswith("params"))]
+    
+    config_file = Path(__file__).parent.parent.parent / "config"
+    
+    
+    files = [x for x in os.listdir(config_file) if (x.endswith(".csv") and x.startswith("params"))]
     p = {}
     
     countries = []
@@ -37,7 +43,7 @@ def read_params():
         country = i[6:-4]
         countries.append(country)
         
-        p[country] = pd.read_csv("config/" + i)
+        p[country] = pd.read_csv(config_file / i)
     
     return((countries,p))
         
@@ -228,43 +234,87 @@ def assess_windparks_country(raw_dir, dirs, temp_dir, model, threshold):
         files = [x for x in os.listdir(dir_all) if x.endswith(".tif")]
 
         dir_all_turbines = raw_dir + directory + "/turbines/"
+        dir_no_turbines = raw_dir + directory + "/no_turbines/"
     
 
         shutil.rmtree(dir_all_turbines, ignore_errors=True)
         os.makedirs(dir_all_turbines, exist_ok=True)
 
+        shutil.rmtree(dir_no_turbines, ignore_errors=True)
+        os.makedirs(dir_no_turbines, exist_ok=True)        
         
-        
-        classified_dir = dir_all_turbines    
+        classified_wind_dir = dir_all_turbines    
+        classified_no_wind_dir = dir_no_turbines    
 
         for f in files:
             src = dir_all + f
             dst = temp_dir + f[:-4]+".png"
             
             try:
-                gdal.Translate(dst,src)
-            except:
+                
+                
+                #Open existing dataset
+                src_ds = gdal.Open(src)
+
+                #Open output format driver, see gdal_translate --formats for list
+                format = "PNG"
+                driver = gdal.GetDriverByName(format)
+
+                #Output to new format
+                dst_ds = driver.CreateCopy(dst, src_ds, 0)
+
+                #Properly close the datasets to flush to disk
+                dst_ds = None
+                src_ds = None
+                
+                #gdal.Translate(dst, src, of = "png")
+                print(src)
+                print(dst)
+                
+                # flush file to prevent an error when opening
+                #fo = open(dst, "wb")
+                #fo.flush()
+                #fo.close()
+                
+                image = load(dst) 
+                predict = model.predict(image)[0]
+                print(predict)
+             
+                
+            except Exception as e:
                 print("Exception gdal " + f)
+                print(e)
+              
                 continue
         
             print(src)
             print(dst)
    
     
-            image = load(dst) 
-            predict = model.predict(image)[0]
-            print(predict)
+          
             
-            final_dst = classified_dir + f[:-4] + "_" + str(round(predict[0],3)) + ".png"
-        
+           
             if(predict>threshold):
                 print("windturbine found at "+f[0:-4])
+                final_dst = classified_wind_dir + f[:-4] + "_" + str(round(predict[0],3)) + ".png"
                 element = str.split(f[0:-4],"_")
                 element.append(predict)
                 element.append(f)
                 element.append(directory)
                 lons_lats_found.append(element)
                 shutil.copyfile(dst,final_dst)
+                print(final_dst)
+            else:
+                print("no windturbine found at "+f[0:-4])
+                final_dst = classified_no_wind_dir + f[:-4] + "_" + str(round(predict[0],3)) + ".png"
+                element = str.split(f[0:-4],"_")
+                element.append(predict)
+                element.append(f)
+                element.append(directory)
+                lons_lats_found.append(element)
+                shutil.copyfile(dst,final_dst)
+                print(final_dst)
+                
     
             os.remove(dst)
             os.remove(dst+".aux.xml")
