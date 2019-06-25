@@ -13,8 +13,6 @@ import gdal
 import imp
 
 
-os.chdir("G:/Meine Ablage/LVA/PhD Lectures/MachineLearningCourse")
-
 import scripts.windturbines.functions_pattern_recognition as fpr
 imp.reload(fpr)
 from scripts.windturbines.functions_pattern_recognition import get_param

@@ -223,43 +223,33 @@ def check_image(file, model, filename):
     #cv2.imwrite('/Users/fchollet/Downloads/elephant_cam.jpg', superimposed_img)
 
 
-def assess_windparks_country(raw_dir, dirs, temp_dir, model, threshold):
-    
-    lons_lats_found = []
-
-    for directory in dirs:
-
-        dir_all = raw_dir + directory + "/"
-    
-        files = [x for x in os.listdir(dir_all) if x.endswith(".tif")]
-
-        dir_all_turbines = raw_dir + directory + "/turbines/"
-        dir_no_turbines = raw_dir + directory + "/no_turbines/"
-    
-
-        shutil.rmtree(dir_all_turbines, ignore_errors=True)
-        os.makedirs(dir_all_turbines, exist_ok=True)
-
-        shutil.rmtree(dir_no_turbines, ignore_errors=True)
-        os.makedirs(dir_no_turbines, exist_ok=True)        
+def copy_threshold_files(p, threshold, raw_dir):
+    for index, row in p.iterrows():
+       
+        probability = row[3]
+        name = row[4]
+        directory = row[5]
         
-        classified_wind_dir = dir_all_turbines    
-        classified_no_wind_dir = dir_no_turbines    
-
-        for f in files:
-            src = dir_all + f
-            dst = temp_dir + f[:-4]+".png"
+        
+        
+        dir_all_turbines = raw_dir + "/turbines/"
+        
+        if(probability > threshold):
+                
+                dir_all = raw_dir + directory + "/"
             
-            try:
+                src = dir_all + name
                 
                 
-                #Open existing dataset
+                dst = dir_all_turbines + "/" + name[:-4] + "_" + str(probability) + "_" + directory + ".png"
+              
                 src_ds = gdal.Open(src)
 
                 #Open output format driver, see gdal_translate --formats for list
                 format = "PNG"
                 driver = gdal.GetDriverByName(format)
-
+                
+                
                 #Output to new format
                 dst_ds = driver.CreateCopy(dst, src_ds, 0)
 
@@ -267,64 +257,94 @@ def assess_windparks_country(raw_dir, dirs, temp_dir, model, threshold):
                 dst_ds = None
                 src_ds = None
                 
-                #gdal.Translate(dst, src, of = "png")
-                print(src)
-                print(dst)
+                print("copying " + dst)
+                os.remove(dst + ".aux.xml")
                 
-                # flush file to prevent an error when opening
-                #fo = open(dst, "wb")
-                #fo.flush()
-                #fo.close()
                 
-                image = load(dst) 
-                predict = model.predict(image)[0]
-                print(predict)
-             
                 
-            except Exception as e:
-                print("Exception gdal " + f)
-                print(e)
-              
-                continue
+
+
+
+def assess_windparks_country(raw_dir, dirs, temp_dir, model):
+    
+    lons_lats_found = []
+    
+    dir_all_turbines = raw_dir + "/turbines/"
+    dir_no_turbines = raw_dir + "/no_turbines/"
+    
+    shutil.rmtree(dir_all_turbines, ignore_errors = True)
+    os.makedirs(dir_all_turbines, exist_ok = True)
+
+    shutil.rmtree(dir_no_turbines, ignore_errors = True)
+    os.makedirs(dir_no_turbines, exist_ok = True)        
         
-            print(src)
-            print(dst)
-   
+    for directory in dirs:
+
+        dir_all = raw_dir + directory + "/"
     
-          
+        files = [x for x in os.listdir(dir_all) if x.endswith(".tif")]
+        
+        print("Currently assessing " + directory)
+
+        #dir_all_turbines = raw_dir + directory + "/turbines/"
+        #dir_no_turbines = raw_dir + directory + "/no_turbines/"
+       
+        
+        for f in files:
             
-           
-            if(predict>threshold):
-                print("windturbine found at "+f[0:-4])
-                final_dst = classified_wind_dir + f[:-4] + "_" + str(round(predict[0],3)) + ".png"
-                element = str.split(f[0:-4],"_")
-                element.append(predict)
-                element.append(f)
-                element.append(directory)
-                lons_lats_found.append(element)
-                shutil.copyfile(dst,final_dst)
-                print(final_dst)
-            else:
-                print("no windturbine found at "+f[0:-4])
-                final_dst = classified_no_wind_dir + f[:-4] + "_" + str(round(predict[0],3)) + ".png"
-                element = str.split(f[0:-4],"_")
-                element.append(predict)
-                element.append(f)
-                element.append(directory)
-                lons_lats_found.append(element)
-                shutil.copyfile(dst,final_dst)
-                print(final_dst)
+            src = dir_all + f
+            dst = temp_dir + f[:-4]+".png"
+            
+            element = assess_location(f, src, dst, directory, model)
+            
+            lons_lats_found.append(element)
                 
-    
-            os.remove(dst)
-            os.remove(dst+".aux.xml")
+            
 
 
     return(lons_lats_found) 
+    
+    
+def assess_location(f, src, dst, directory, model):
+#try:
+                
+                
+            #Open existing dataset
+            src_ds = gdal.Open(src)
+
+            #Open output format driver, see gdal_translate --formats for list
+            format = "PNG"
+            driver = gdal.GetDriverByName(format)
+
+            #Output to new format
+            dst_ds = driver.CreateCopy(dst, src_ds, 0)
+
+            #Properly close the datasets to flush to disk
+            dst_ds = None
+            src_ds = None
+                
+            image = load(dst) 
+            predict = model.predict(image)[0]
+                
+#except Exception as e:
+#print("Exception gdal " + f)
+#print(e)
+              
+            
+           
+            element = str.split(f[0:-4],"_")
+            element.append(predict[0])
+            element.append(f)
+            element.append(directory)
+            
+            os.remove(dst)
+            os.remove(dst+".aux.xml")
+            return(element)
 
 
     #input("Press Enter to continue...")   
-    
+
+
 
     
     

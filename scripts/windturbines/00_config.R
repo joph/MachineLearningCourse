@@ -133,6 +133,16 @@ for(COUNTRY in COUNTRY_LIST){
                                          PATH_EXPERIMENT,
                                          "keras/test/NoTurbines/")
   
+  PATH_OSM<-paste0("data/osm/",COUNTRY)
+  
+  PATH_RAW_IMAGES_OSM<-paste0("data/aerialImages/",
+                                     PATH_EXPERIMENT,
+                                     "osm/")
+  
+  FILE_OSM_TURBINE_LOCATIONS<-paste0(
+    PATH_OSM,
+    "/windturbines.csv")
+  
   
   
   
@@ -162,7 +172,10 @@ for(COUNTRY in COUNTRY_LIST){
     PATH_QUALITYCHECK,
     PATH_RAW_IMAGES_TURBINES_MACHINE_CLASSIFIED,
     PATH_RAW_IMAGES_NOTURBINES_MACHINE_CLASSIFIED,
-    PATH_RAW_IMAGES_ASSESSMENT
+    PATH_RAW_IMAGES_ASSESSMENT,
+    PATH_OSM,
+    PATH_RAW_IMAGES_OSM
+    
     #,
     #PATH_RAW_IMAGES_ASSESSMENT_TURBINES
   )
@@ -174,7 +187,8 @@ for(COUNTRY in COUNTRY_LIST){
   
   
   files<-data.frame(FILE_QUALITY_CHECK,
-                    FILE_TURBINE_LOCATIONS)
+                    FILE_TURBINE_LOCATIONS,
+                    FILE_OSM_TURBINE_LOCATIONS)
   
   
   ####write config files

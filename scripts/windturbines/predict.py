@@ -19,18 +19,9 @@ import numpy as np
 
 from keras.preprocessing.image import ImageDataGenerator
 
-os.chdir("G:/Meine Ablage/LVA/PhD Lectures/MachineLearningCourse")
+test_base_dir=fpr.get_param(COUNTRY, "PATH_ML_IMAGES_TURBINES_TEST")+"../"
 
-params=pandas.read_csv("config/params.csv")
-
-def get_param(name):
-    val=params.at[0,name]
-    return(val)
-
-
-test_base_dir=get_param("PATH_ML_IMAGES_TURBINES_TEST")+"../"
-
-model=models.load_model('models/model-027-0.988224-1.000000.h5')
+model=models.load_model('models/model-0099-0.04.h5')
 
 test_datagen = ImageDataGenerator(rescale=1./255)
 
@@ -42,6 +33,7 @@ test_generator = test_datagen.flow_from_directory(
 
 test_loss, test_acc = model.evaluate_generator(test_generator, steps=32)
 print('test acc:', test_acc)
+print('test loss:', test_loss)
 
 
 #############predict all images iwth turbines
