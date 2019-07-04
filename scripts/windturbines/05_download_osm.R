@@ -1,5 +1,6 @@
-BASE_DIR<-("G:/Meine Ablage/LVA/PhD Lectures/MachineLearningCourse")
-setwd(BASE_DIR)
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+setwd("../../")
+
 source("scripts/windturbines/00_config.R")
 
 require(ggplot2)
@@ -34,4 +35,5 @@ createWindTurbineImages(coordinates,
                         get_param(COUNTRY,
                                   "PATH_RAW_IMAGES_OSM"),
                         get_param(COUNTRY,
-                                  "RESOLUTION"))
+                                  "RESOLUTION"),
+                        nmb=16)

@@ -478,7 +478,7 @@ getOneRandomTileNoTurbine<-function(i,directory,subs_union,minX,maxX,minY,maxY,z
   }
 }
 
-createWindTurbineImages<-function(windTurbines_filtered,directory,zoom=17,start=1){
+createWindTurbineImages<-function(windTurbines_filtered,directory,zoom=17,start=1,nmb){
   
   dir.create(file.path(".", directory), 
              showWarnings = FALSE)
@@ -487,7 +487,7 @@ createWindTurbineImages<-function(windTurbines_filtered,directory,zoom=17,start=
   
   unlink(logfile)
   
-  cl <- makeCluster(4,
+  cl <- makeCluster(nmb,
                    outfile=logfile)
   
   clusterEvalQ(cl, source("scripts/windturbines/functions.R"))

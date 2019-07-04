@@ -1,8 +1,6 @@
-BASE_DIR<-("G:/Meine Ablage/LVA/PhD Lectures/MachineLearningCourse")
-setwd(BASE_DIR)
-source("scripts/windturbines/functions.R")
+setwd("/data/projects/windturbine-identification/MachineLearningCourse")
 
-###belgium should work...
+source("scripts/windturbines/functions.R")
 
 SOURCE<-"GOOGLE"
 url_source<-function(x,y,z,SOURCE){

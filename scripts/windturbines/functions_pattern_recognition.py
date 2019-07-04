@@ -102,7 +102,7 @@ def cop_predict(f,threshold,raw_dir,temp_dir,dest_dir,model):
         predict = model.predict(image)[0]
         print(predict)
     
-        if(predict>threshold):
+        if(predict<threshold):
             copyfile(dst,final_dst)
     
         os.remove(dst)
@@ -223,18 +223,44 @@ def check_image(file, model, filename):
     #cv2.imwrite('/Users/fchollet/Downloads/elephant_cam.jpg', superimposed_img)
 
 
-def copy_threshold_files(p, threshold, raw_dir):
+def copyfile_to_png(src, dst):
+      src_ds = gdal.Open(src)
+
+      #Open output format driver, see gdal_translate --formats for list
+      format = "PNG"
+      driver = gdal.GetDriverByName(format)
+                
+                
+      #Output to new format
+      dst_ds = driver.CreateCopy(dst, src_ds, 0)
+    
+#      try:
+#          os.remove(dst + ".aux.xml")
+#      except: 
+#          print(dst + ".aux.xml")
+#          pass
+      #Properly close the datasets to flush to disk
+      dst_ds = None
+      src_ds = None
+    
+    
+def copy_threshold_files(p, threshold_low, threshold_high, raw_dir, sub_dst_directory):
+    
+    cnt = 0
+    
     for index, row in p.iterrows():
        
+        cnt = cnt + 1
+    
         probability = row[3]
         name = row[4]
         directory = row[5]
         
         
         
-        dir_all_turbines = raw_dir + "/turbines/"
+        dir_all_turbines = raw_dir + sub_dst_directory
         
-        if(probability > threshold):
+        if(probability < threshold_high and probability > threshold_low):
                 
                 dir_all = raw_dir + directory + "/"
             
@@ -257,8 +283,13 @@ def copy_threshold_files(p, threshold, raw_dir):
                 dst_ds = None
                 src_ds = None
                 
-                print("copying " + dst)
-                os.remove(dst + ".aux.xml")
+                if(cnt % 100 == 0):
+                    print("src: " + src)
+                    print("dst: " + dst)
+                try:
+                    os.remove(dst + ".aux.xml")
+                except Exception as e:
+                    print(e)
                 
                 
                 
@@ -268,15 +299,6 @@ def copy_threshold_files(p, threshold, raw_dir):
 def assess_windparks_country(raw_dir, dirs, temp_dir, model):
     
     lons_lats_found = []
-    
-    dir_all_turbines = raw_dir + "/turbines/"
-    dir_no_turbines = raw_dir + "/no_turbines/"
-    
-    shutil.rmtree(dir_all_turbines, ignore_errors = True)
-    os.makedirs(dir_all_turbines, exist_ok = True)
-
-    shutil.rmtree(dir_no_turbines, ignore_errors = True)
-    os.makedirs(dir_no_turbines, exist_ok = True)        
         
     for directory in dirs:
 
@@ -315,31 +337,38 @@ def assess_location(f, src, dst, directory, model):
             #Open output format driver, see gdal_translate --formats for list
             format = "PNG"
             driver = gdal.GetDriverByName(format)
+            try:
+                #Output to new format
+                dst_ds = driver.CreateCopy(dst, src_ds, 0)
 
-            #Output to new format
-            dst_ds = driver.CreateCopy(dst, src_ds, 0)
-
-            #Properly close the datasets to flush to disk
-            dst_ds = None
-            src_ds = None
+                #Properly close the datasets to flush to disk
+                dst_ds = None
+                src_ds = None
                 
-            image = load(dst) 
-            predict = model.predict(image)[0]
+                image = load(dst) 
+                predict = model.predict(image)[0]
                 
-#except Exception as e:
-#print("Exception gdal " + f)
-#print(e)
-              
+  
             
            
-            element = str.split(f[0:-4],"_")
-            element.append(predict[0])
-            element.append(f)
-            element.append(directory)
+                element = str.split(f[0:-4],"_")
+                element.append(predict[0])
+                element.append(f)
+                element.append(directory)
             
-            os.remove(dst)
-            os.remove(dst+".aux.xml")
-            return(element)
+                os.remove(dst)
+                os.remove(dst+".aux.xml")
+                return(element)
+            
+            except Exception as e:
+                print("Exception gdal " + f)
+                print(e)
+                element = str.split(f[0:-4],"_")
+                element.append(-1)
+                element.append(f)
+                element.append(directory)
+                return(element)
+            
 
 
     #input("Press Enter to continue...")   
