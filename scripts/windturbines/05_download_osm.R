@@ -7,33 +7,35 @@ require(ggplot2)
 require(rgdal)
 require(sf)
 
-COUNTRY<-"DE"
+COUNTRIES<-c('IN', 'ES', 'GB', 'FR', 'BR', 'CA')
 
-PATH_OSM<-get_param(COUNTRY,"PATH_OSM")
+for(COUNTRY in COUNTRIES){
 
-#zip_file<-paste0(PATH_OSM,"/",COUNTRY,".zip")
+  PATH_OSM<-get_param(COUNTRY,"PATH_OSM")
 
-#unzip(zip_file, exdir=PATH_OSM)
+  shape_file<-paste0(COUNTRY,".shp")
 
-shape_file<-paste0(COUNTRY,".shp")
+  shape <- readOGR(dsn = PATH_OSM) 
 
-shape <- readOGR(dsn = PATH_OSM) 
+  windturbines<-st_as_sf(shape) %>% mutate(source=as.character(source)) 
 
-windturbines<-st_as_sf(shape) %>% mutate(source=as.character(source)) 
+  windturbines<-windturbines %>% filter(startsWith(source,"wind"))
 
-windturbines<-windturbines %>% filter(startsWith(source,"wind"))
+  plot(windturbines)
 
-plot(windturbines)
+  nrow(windturbines)
 
-coordinates<-st_coordinates(windturbines) %>% as_tibble()
+  coordinates<-st_coordinates(windturbines) %>% as_tibble()
 
-names(coordinates)<-c("Long", "Lat")
+  names(coordinates)<-c("Long", "Lat")
 
-write_csv(coordinates, get_param(COUNTRY,"FILE_OSM_TURBINE_LOCATIONS"))
+  write_csv(coordinates, get_param(COUNTRY,"FILE_OSM_TURBINE_LOCATIONS"))
 
-createWindTurbineImages(coordinates,
+  createWindTurbineImages(coordinates,
                         get_param(COUNTRY,
                                   "PATH_RAW_IMAGES_OSM"),
                         get_param(COUNTRY,
                                   "RESOLUTION"),
                         nmb=16)
+
+  }

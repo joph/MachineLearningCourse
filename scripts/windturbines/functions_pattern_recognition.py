@@ -371,10 +371,8 @@ def assess_location(f, src, dst, directory, model):
             
 
 
-    #input("Press Enter to continue...")   
-
-
-
+    #input("Press Enter to continue...")  
+    
     
     
     

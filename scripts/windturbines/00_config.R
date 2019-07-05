@@ -32,7 +32,7 @@ url_source<-function(x,y,z,SOURCE){
 
 
 RESOLUTION<-19
-COUNTRY_LIST<-c("CN","DE","FR","AT","BR","MIX","GLOBAL")
+COUNTRY_LIST<-c("CN","DE","FR","AT","BR","IN","ES","GB","CA","MIX","GLOBAL")
 
 all_params<-list()
 
