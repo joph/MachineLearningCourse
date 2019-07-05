@@ -3,6 +3,9 @@
 /sessions/
 /models/
 /presentations/data/S2A_MSIL2A_20190227T095031_N0211_R079_T33UXP_20190227T123452.SAFE/
+/.spyproject/
+/application/
+/temp/
 
 *.shp
 *.dbf
