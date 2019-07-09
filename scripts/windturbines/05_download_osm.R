@@ -7,10 +7,12 @@ require(ggplot2)
 require(rgdal)
 require(sf)
 
-COUNTRIES<-c('IN', 'ES', 'GB', 'FR', 'BR', 'CA')
+COUNTRIES<-c('CN', 'IN', 'ES', 'GB', 'FR', 'BR', 'CA')
 
 for(COUNTRY in COUNTRIES){
 
+  
+  
   PATH_OSM<-get_param(COUNTRY,"PATH_OSM")
 
   shape_file<-paste0(COUNTRY,".shp")

@@ -244,9 +244,14 @@ def copyfile_to_png(src, dst):
       src_ds = None
     
     
-def copy_threshold_files(p, threshold_low, threshold_high, raw_dir, sub_dst_directory):
+def copy_threshold_files(p, threshold_low, threshold_high, raw_dir, sub_dst_directory, directory_given = True):
     
     cnt = 0
+
+    old_country = ""
+    
+    raw_dir_dst = raw_dir
+
     
     for index, row in p.iterrows():
        
@@ -255,10 +260,16 @@ def copy_threshold_files(p, threshold_low, threshold_high, raw_dir, sub_dst_dire
         probability = row[3]
         name = row[4]
         directory = row[5]
+        country = row[6]
+        
+        dir_all_turbines = raw_dir_dst + sub_dst_directory
         
         
+        if(not directory_given and not (old_country == country)):
+            raw_dir = get_param(country, "PATH_RAW_IMAGES_OSM")
+         
         
-        dir_all_turbines = raw_dir + sub_dst_directory
+        old_country = country
         
         if(probability < threshold_high and probability > threshold_low):
                 
@@ -267,26 +278,29 @@ def copy_threshold_files(p, threshold_low, threshold_high, raw_dir, sub_dst_dire
                 src = dir_all + name
                 
                 
+                
+                
                 dst = dir_all_turbines + "/" + name[:-4] + "_" + str(probability) + "_" + directory + ".png"
-              
-                src_ds = gdal.Open(src)
-
-                #Open output format driver, see gdal_translate --formats for list
-                format = "PNG"
-                driver = gdal.GetDriverByName(format)
-                
-                
-                #Output to new format
-                dst_ds = driver.CreateCopy(dst, src_ds, 0)
-
-                #Properly close the datasets to flush to disk
-                dst_ds = None
-                src_ds = None
-                
-                if(cnt % 100 == 0):
-                    print("src: " + src)
-                    print("dst: " + dst)
+                  
                 try:
+                    src_ds = gdal.Open(src)
+
+                    #Open output format driver, see gdal_translate --formats for list
+                    format = "PNG"
+                    driver = gdal.GetDriverByName(format)
+
+
+                    #Output to new format
+                    dst_ds = driver.CreateCopy(dst, src_ds, 0)
+
+                    #Properly close the datasets to flush to disk
+                    dst_ds = None
+                    src_ds = None
+
+                    if(cnt % 100 == 0):
+                        print("src: " + src)
+                        print("dst: " + dst)
+                
                     os.remove(dst + ".aux.xml")
                 except Exception as e:
                     print(e)
