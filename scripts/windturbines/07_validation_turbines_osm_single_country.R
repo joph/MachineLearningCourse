@@ -17,11 +17,15 @@ cs_locations<-cs_locations %>%
 
 predictions_osm<-feather("data/osm/all_predictions.feather") %>% as_tibble()
 
-predictions_filtered<-predictions_osm %>% filter(country==CURRENT_COUNTRY) 
+osm<-predictions_osm %>% filter(country==CURRENT_COUNTRY) 
 
-predictions_cs <- get_param(COUNTRY,
+predictions_cs <- get_param(CURRENT_COUNTRY,
                             "PATH_RAW_IMAGES_TURBINES")
 
+cs <- feather(paste0(predictions_cs,"all_predictions.feather"))
+
+osm<-osm %>% as_tibble()
+cs<-cs %>% as_tibble()
 
 
 
