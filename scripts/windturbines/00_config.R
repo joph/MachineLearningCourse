@@ -6,7 +6,10 @@ SOURCE<-"GOOGLE"
 url_source<-function(x,y,z,SOURCE){
 
   url<-""
-    
+  
+  x<-format(x,scientific=FALSE)
+  y<-format(y,scientific=FALSE)
+  
   if(SOURCE=="GOOGLE"){
     url<-paste0("http://mt0.google.com/vt/lyrs=s&hl=en&x=",x,"&y=",y,"&z=",z,"")
     
@@ -32,12 +35,16 @@ url_source<-function(x,y,z,SOURCE){
 
 
 RESOLUTION<-19
-COUNTRY_LIST<-c("CN","DE","FR","AT","BR","IN","ES","GB","CA","MIX","GLOBAL")
+
+COUNTRY_LIST<-c("EG", "MA", "ZA", "CN", "IN", "JP", "KP", "PK", "PH", "TH", "CR", "TR", 
+                "AT", "BE", "BG", "HR", "DK", "FI", "FR", "DE", "GR", "IE", "IT", "LT", 
+                "NL", "NO", "PL", "PT", "RO", "ES", "SE", "GB", "UA", "CA", "MX", "US", "AU", "NZ", "BR", "CL", "UY", "MIX", "GLOBAL")
+
 
 all_params<-list()
 
 for(COUNTRY in COUNTRY_LIST){
-  FILTER_WINDTURBINES_KW<-1000
+  FILTER_WINDTURBINES_KW<-0
   
   PATH_EXPERIMENT<-
     paste0(SOURCE,

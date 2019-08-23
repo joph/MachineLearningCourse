@@ -1,5 +1,8 @@
+print(getwd())
+source("scripts/windturbines/00_config.R")
 
-CURRENT_COUNTRY<-"BR"
+
+CURRENT_COUNTRY<-"AT"
 
 
 windTurbines<-read_csv(get_param(CURRENT_COUNTRY,
@@ -16,13 +19,14 @@ createWindTurbineImages(windTurbines_filtered,
                         get_param(CURRENT_COUNTRY,
                                   "PATH_RAW_IMAGES_TURBINES"),
                         get_param(CURRENT_COUNTRY,
-                                  "RESOLUTION"))
+                                  "RESOLUTION"),
+                        nmb=24)
 
-createNonWindTurbineImagesRandom(windTurbines_filtered,
-                                 nrow(windTurbines_filtered),
-                                 get_param(CURRENT_COUNTRY,
-                                           "PATH_RAW_IMAGES_NOTURBINES"),
-                                 get_param(CURRENT_COUNTRY,
-                                           "PATH_WINDPARK_LOCATIONS"),
-                                 get_param(CURRENT_COUNTRY,
-                                           "RESOLUTION"))
+#createNonWindTurbineImagesRandom(windTurbines_filtered,
+#                                 nrow(windTurbines_filtered),
+#                                 get_param(CURRENT_COUNTRY,
+#                                           "PATH_RAW_IMAGES_NOTURBINES"),
+#                                 get_param(CURRENT_COUNTRY,
+#                                           "PATH_WINDPARK_LOCATIONS"),
+#                                 get_param(CURRENT_COUNTRY,
+#                                           "RESOLUTION"))

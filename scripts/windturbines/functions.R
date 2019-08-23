@@ -13,6 +13,8 @@ library(geosphere)
 library(foreign)
 library(sf)
 library(parallel)
+library(FNN)
+library(readxl)
 
 
 ###imports windturbine data from ig-windkraft, adds column with windpark-name,
@@ -255,12 +257,10 @@ save_tile<-function(file,lon,lat,zoom){
   #gettile long lat
   TILE_SIZE <- 256
   scale<-bitwShiftL(1,zoom)
-  
-  
-  
+
   siny<- sin(lat * pi / 180)
   
-  siny<- min(max(siny, -0.9999), 0.9999)
+  siny<- min(max(siny, -0.9999999999999), 0.9999999999999999999)
   
   x<-TILE_SIZE * (0.5 + lon / 360)
   y<-TILE_SIZE * (0.5 - log((1 + siny) / (1 - siny)) / (4 * pi))
@@ -610,4 +610,144 @@ doSinglePark<-function(name,
 #batch_gdal_translate(infiles, outdir, outsuffix = "_conv.tif",
 #                     pattern = NULL, recursive = FALSE, verbose = FALSE, ...)
 
+
+
+graphix<-function(uswtdb_osm){
+  
+  print("Remaining turbines")
+  uswtdb_osm %>% 
+    filter(filt) %>% 
+    nrow() %>% print()
+  
+  if("cap" %in% names(uswtdb_osm)){
+    print("Capacities")
+    fig1<-uswtdb_osm %>% 
+      group_by(filt) %>% 
+      summarize(sum_cap=sum(cap,na.rm=TRUE)/10^6) %>% 
+      print()
+    plot(fig1)
+  }
+  
+  
+  fig2<-uswtdb_osm %>% 
+    ggplot(aes(x=lon_a,y=lat_a)) + geom_point(aes(col=filt)) + xlim(-150,-50)
+  plot(fig2)
+  
+  if("year" %in% names(uswtdb_osm)){
+    fig3<-uswtdb_osm %>% dplyr::select(filt,year,cap) %>% 
+      gather(var,val,-filt) %>% 
+      ggplot(aes(x=filt,y=val)) + 
+      geom_boxplot() +
+      facet_wrap(.~var, scales="free")
+    plot(fig3)
+  }
+  
+  fig4<-uswtdb_osm_agg<-uswtdb_osm %>% 
+    filter(filt) %>%  
+    mutate(diff_lon=lon_a-lon_b,diff_lat=lat_a-lat_b) %>% 
+    dplyr::select(diff_lon,diff_lat) 
+  plot(fig4)
+  
+  fig5<-uswtdb_osm_agg %>%  
+    ggplot(aes(x=diff_lon,y=diff_lat)) + stat_bin2d()
+  plot(fig5)
+  
+  print("Mean of lon and lat diffs...")
+  uswtdb_osm_agg %>% gather(var,val) %>%
+    group_by(var) %>% summarize(n=mean(val)) %>% print()
+  
+  fig6<-uswtdb_osm_agg %>% gather(var,val) %>% 
+    ggplot(aes(val)) + geom_histogram(aes(col=var))
+  plot(fig6)
+  
+  fig7<-uswtdb_osm_agg %>% gather(var,val) %>% 
+    filter(var %in% c("diff_lon")) %>% ggplot(aes(val)) + geom_histogram()
+  plot(fig7)
+  
+}
+
+calc_dist<-function(LngA,LatA,LngB,LatB){
+  LngA<-LngA * pi / 180
+  LngB<-LngB * pi / 180
+  LatA<-LatA * pi / 180
+  LatB<-LatB * pi / 180
+  
+  dist<-6378 *10^3 * acos(cos(LatA) * cos(LatB) * cos(LngB - LngA) + sin(LatA) * sin(LatB))
+  return(dist)
+}
+
+
+match_closest_turbines_simple<-function(a,b){
+  
+  res<-get.knnx(a[,1:2], a[,1:2], k=2, algorithm=c("kd_tree"))
+  
+  res_index<-res$nn.index[,2]
+  
+  dist_acc_meter<-calc_dist(a$Lon,
+                            a$Lat,
+                            a$Lon[res_index],
+                            a$Lat[res_index])
+  
+  a_filtered<-a %>% filter(dist_acc_meter > filter_own_meter)
+  
+}
+
+match_closest_turbines<-function(a,b,filter_own_meter,filter_other_meter){
+  
+  res<-get.knnx(a[,1:2], a[,1:2], k=2, algorithm=c("kd_tree"))
+  
+  res_index<-res$nn.index[,2]
+  
+  dist_acc_meter<-calc_dist(a$Lon,
+                            a$Lat,
+                            a$Lon[res_index],
+                            a$Lat[res_index])
+  
+  a_filtered<-a %>% filter(dist_acc_meter > filter_own_meter)
+  
+  #if(!is.null(wind_turbines)){
+  #  wind_turbines_filtered<-wind_turbines %>% filter(dist_acc_meter > filter_own_meter)
+  #}
+  
+  print(nrow(a))
+  print(nrow(a_filtered))
+  
+  res<-get.knnx(a_filtered[,1:2], a_filtered[,1:2], k=2, algorithm=c("kd_tree"))
+  a_eigen_dist<-res$nn.dist[,2]
+  
+  res<-get.knnx(b[,1:2], a_filtered[,1:2], k=1, algorithm=c("kd_tree"))
+  
+  res_index<-res$nn.index
+  res_dist<-res$nn.dist
+  
+  dist_acc_meter<-calc_dist(a_filtered$Lon,
+                            a_filtered$Lat,
+                            b$Lon[res_index],
+                            b$Lat[res_index])
+  
+  joined_data_a_b<-NULL
+  
+  #if(!is.null(wind_turbines)){
+  joined_data_a_b<-a_filtered %>% mutate(
+                            lon_a=a_filtered$Lon,
+                            lat_a=a_filtered$Lat,
+                            lon_b=b$Lon[res_index],
+                            lat_b=b$Lat[res_index],
+                            dist=res_dist,
+                            dist_eigen=a_eigen_dist,
+                            dist_acc_meter) %>% 
+                  bind_cols(b[res_index,])
+  
+  tt<-(joined_data_a_b$dist<joined_data_a_b$dist_eigen & joined_data_a_b$dist_acc_meter<filter_other_meter)[,1]
+  
+  joined_data_a_b<-joined_data_a_b %>% 
+    mutate(filt=tt)
+  
+  joined_data_a_b<-joined_data_a_b %>% group_by(lon_a,lon_b) %>% mutate(filt_double=ifelse(dist_acc_meter==min(dist_acc_meter),1,0)) %>% 
+    filter(filt_double==1) %>% ungroup()
+  
+  
+  
+  return(joined_data_a_b)
+}
 
