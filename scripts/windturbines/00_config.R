@@ -63,6 +63,8 @@ for(COUNTRY in COUNTRY_LIST){
     PATH_TURBINE_LOCATIONS,
     "windturbineLocations.csv")
   
+  
+  
   PATH_RAW_IMAGES_TURBINES<-paste0("data/aerialImages/",
                                    PATH_EXPERIMENT,
                                    "raw/Turbines/")
@@ -138,6 +140,70 @@ for(COUNTRY in COUNTRY_LIST){
                                          PATH_EXPERIMENT,
                                          "keras/test/NoTurbines/")
   
+  PATH_ML_IMAGES_TYPE_SMALL_TRAIN<-paste0("data/aerialImages/",
+                                         PATH_EXPERIMENT,
+                                         "type_keras/train/Small/")
+  
+  
+  PATH_ML_IMAGES_TYPE_MIDDLE_TRAIN<-paste0("data/aerialImages/",
+                                           PATH_EXPERIMENT,
+                                           "type_keras/train/Middle/")
+  
+  
+  PATH_ML_IMAGES_TYPE_LARGE_TRAIN<-paste0("data/aerialImages/",
+                                           PATH_EXPERIMENT,
+                                           "type_keras/train/Large/")
+  
+  PATH_ML_IMAGES_TYPE_SMALL_TEST<-paste0("data/aerialImages/",
+                                          PATH_EXPERIMENT,
+                                          "type_keras/test/Small/")
+  
+  
+  PATH_ML_IMAGES_TYPE_MIDDLE_TEST<-paste0("data/aerialImages/",
+                                           PATH_EXPERIMENT,
+                                           "type_keras/test/Middle/")
+  
+  
+  PATH_ML_IMAGES_TYPE_LARGE_TEST<-paste0("data/aerialImages/",
+                                          PATH_EXPERIMENT,
+                                          "type_keras/test/Large/")
+  
+  
+  PATH_ML_IMAGES_TYPE_SMALL_VALIDATION<-paste0("data/aerialImages/",
+                                          PATH_EXPERIMENT,
+                                          "type_keras/validation/Small/")
+  
+  
+  PATH_ML_IMAGES_TYPE_MIDDLE_VALIDATION<-paste0("data/aerialImages/",
+                                           PATH_EXPERIMENT,
+                                           "type_keras/validation/Middle/")
+  
+  
+  PATH_ML_IMAGES_TYPE_LARGE_VALIDATION<-paste0("data/aerialImages/",
+                                          PATH_EXPERIMENT,
+                                          "type_keras/validation/Large/")
+  
+
+  PATH_ML_IMAGES_TYPE_REGRESSION_TRAIN<-paste0("data/aerialImages/",
+                                                    PATH_EXPERIMENT,
+                                                    "type_keras_regression/train/")
+  
+  
+  PATH_ML_IMAGES_TYPE_REGRESSION_TEST<-paste0("data/aerialImages/",
+                                                    PATH_EXPERIMENT,
+                                                    "type_keras_regression/test/")
+  
+  
+  PATH_ML_IMAGES_TYPE_REGRESSION_VALIDATION<-paste0("data/aerialImages/",
+                                               PATH_EXPERIMENT,
+                                               "type_keras_regression/validation/")
+  
+  
+  
+
+  
+  
+  
   PATH_OSM<-paste0("data/osm/",COUNTRY)
   
   PATH_RAW_IMAGES_OSM<-paste0("data/aerialImages/",
@@ -179,11 +245,23 @@ for(COUNTRY in COUNTRY_LIST){
     PATH_RAW_IMAGES_NOTURBINES_MACHINE_CLASSIFIED,
     PATH_RAW_IMAGES_ASSESSMENT,
     PATH_OSM,
-    PATH_RAW_IMAGES_OSM
-    
+    PATH_RAW_IMAGES_OSM,
+    PATH_ML_IMAGES_TYPE_SMALL_TRAIN,
+    PATH_ML_IMAGES_TYPE_MIDDLE_TRAIN,
+    PATH_ML_IMAGES_TYPE_LARGE_TRAIN,
+    PATH_ML_IMAGES_TYPE_SMALL_TEST,
+    PATH_ML_IMAGES_TYPE_MIDDLE_TEST,
+    PATH_ML_IMAGES_TYPE_LARGE_TEST,
+    PATH_ML_IMAGES_TYPE_SMALL_VALIDATION,
+    PATH_ML_IMAGES_TYPE_MIDDLE_VALIDATION,
+    PATH_ML_IMAGES_TYPE_LARGE_VALIDATION,
+    PATH_ML_IMAGES_TYPE_REGRESSION_TRAIN,
+    PATH_ML_IMAGES_TYPE_REGRESSION_TEST,
+    PATH_ML_IMAGES_TYPE_REGRESSION_VALIDATION
     #,
     #PATH_RAW_IMAGES_ASSESSMENT_TURBINES
   )
+  
   
   sapply(unlist(paths),
          function(x){

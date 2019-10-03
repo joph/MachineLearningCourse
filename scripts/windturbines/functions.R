@@ -255,6 +255,10 @@ tile2Coords<-function(x,y,z){
 save_tile<-function(file,lon,lat,zoom){
   
   #gettile long lat
+  
+#  lon<-aa[1,]$lon_b
+ # lat<-aa[1,]$lat_b
+  
   TILE_SIZE <- 256
   scale<-bitwShiftL(1,zoom)
 
@@ -288,6 +292,10 @@ save_tile<-function(file,lon,lat,zoom){
   for(i in -1:1){
     for(j in -1:1){
       #print(i)
+      
+      #i<-1
+      #j<-1
+      
       
       url<-url_source(cols+i,
                       rows+j,
@@ -623,7 +631,7 @@ graphix<-function(uswtdb_osm){
     print("Capacities")
     fig1<-uswtdb_osm %>% 
       group_by(filt) %>% 
-      summarize(sum_cap=sum(cap,na.rm=TRUE)/10^6) %>% 
+      dplyr::summarize(sum_cap=sum(cap,na.rm=TRUE)/10^6) %>% 
       print()
     plot(fig1)
   }
@@ -654,7 +662,7 @@ graphix<-function(uswtdb_osm){
   
   print("Mean of lon and lat diffs...")
   uswtdb_osm_agg %>% gather(var,val) %>%
-    group_by(var) %>% summarize(n=mean(val)) %>% print()
+    group_by(var) %>% dplyr::summarize(n=mean(val)) %>% print()
   
   fig6<-uswtdb_osm_agg %>% gather(var,val) %>% 
     ggplot(aes(val)) + geom_histogram(aes(col=var))
@@ -692,62 +700,115 @@ match_closest_turbines_simple<-function(a,b){
   
 }
 
-match_closest_turbines<-function(a,b,filter_own_meter,filter_other_meter){
+filter_own_distance<-function(a,filter_own_meter){
   
   res<-get.knnx(a[,1:2], a[,1:2], k=2, algorithm=c("kd_tree"))
   
   res_index<-res$nn.index[,2]
   
-  dist_acc_meter<-calc_dist(a$Lon,
+  dist_acc_meter<-calc_dist(a$Long,
                             a$Lat,
-                            a$Lon[res_index],
+                            a$Long[res_index],
                             a$Lat[res_index])
   
-  a_filtered<-a %>% filter(dist_acc_meter > filter_own_meter)
+  a<-a %>% mutate(dist_eigen=dist_acc_meter) %>% filter(dist_acc_meter > filter_own_meter)
   
-  #if(!is.null(wind_turbines)){
-  #  wind_turbines_filtered<-wind_turbines %>% filter(dist_acc_meter > filter_own_meter)
-  #}
+  return(a)
   
-  print(nrow(a))
-  print(nrow(a_filtered))
-  
-  res<-get.knnx(a_filtered[,1:2], a_filtered[,1:2], k=2, algorithm=c("kd_tree"))
-  a_eigen_dist<-res$nn.dist[,2]
-  
-  res<-get.knnx(b[,1:2], a_filtered[,1:2], k=1, algorithm=c("kd_tree"))
-  
-  res_index<-res$nn.index
-  res_dist<-res$nn.dist
-  
-  dist_acc_meter<-calc_dist(a_filtered$Lon,
-                            a_filtered$Lat,
-                            b$Lon[res_index],
-                            b$Lat[res_index])
-  
-  joined_data_a_b<-NULL
-  
-  #if(!is.null(wind_turbines)){
-  joined_data_a_b<-a_filtered %>% mutate(
-                            lon_a=a_filtered$Lon,
-                            lat_a=a_filtered$Lat,
-                            lon_b=b$Lon[res_index],
-                            lat_b=b$Lat[res_index],
-                            dist=res_dist,
-                            dist_eigen=a_eigen_dist,
-                            dist_acc_meter) %>% 
-                  bind_cols(b[res_index,])
-  
-  tt<-(joined_data_a_b$dist<joined_data_a_b$dist_eigen & joined_data_a_b$dist_acc_meter<filter_other_meter)[,1]
-  
-  joined_data_a_b<-joined_data_a_b %>% 
-    mutate(filt=tt)
-  
-  joined_data_a_b<-joined_data_a_b %>% group_by(lon_a,lon_b) %>% mutate(filt_double=ifelse(dist_acc_meter==min(dist_acc_meter),1,0)) %>% 
-    filter(filt_double==1) %>% ungroup()
-  
-  
-  
-  return(joined_data_a_b)
 }
+
+match_closest_turbines<-function(a,b,filter_own_meter,filter_other_meter,name_a="a",name_b="b",pred_thresh=0.99){
+  
+  a_filtered<-filter_own_distance(a,filter_own_meter)
+  
+  b_filtered<-filter_own_distance(b,filter_own_meter)
+  
+  print("a filtered")
+  print(nrow(a_filtered))
+  print("b filtered")
+  print(nrow(b_filtered))
+  
+  
+  res_a_b<-get.knnx(b_filtered[,1:2], a_filtered[,1:2], k=1, algorithm=c("kd_tree"))
+  
+  res_b_a<-get.knnx(a_filtered[,1:2], b_filtered[,1:2], k=1, algorithm=c("kd_tree"))
+  
+  res_index_a<-res_a_b$nn.index
+  res_index_b<-res_b_a$nn.index
+  
+  res_dist_a<-res_a_b$nn.dist
+  res_dist_b<-res_b_a$nn.dist
+  
+  ind_a<-1:nrow(res_index_a)
+  ind_b<-1:nrow(res_index_b)
+  
+  a_filtered<-a_filtered %>% mutate(has_twin=ifelse(res_index_b[res_index_a]==ind_a,TRUE,FALSE))
+  b_filtered<-b_filtered %>% mutate(has_twin=ifelse(res_index_a[res_index_b]==ind_b,TRUE,FALSE))
+  
+  dist_acc_meter_a<-calc_dist(a_filtered$Long,
+                            a_filtered$Lat,
+                            b_filtered$Long[res_index_a],
+                            b_filtered$Lat[res_index_a])
+  
+  dist_acc_meter_b<-calc_dist(b_filtered$Long,
+                              b_filtered$Lat,
+                              a_filtered$Long[res_index_b],
+                              a_filtered$Lat[res_index_b])
+  
+  a_filtered<-a_filtered %>% mutate(dist=res_dist_a,
+                                    dist_acc=dist_acc_meter_a,
+                                    prediction_twin=b_filtered$prediction[res_index_a],
+                                    name=name_a)
+  b_filtered<-b_filtered %>% mutate(dist=res_dist_b,
+                                    dist_acc=dist_acc_meter_b,
+                                    prediction_twin=a_filtered$prediction[res_index_b],
+                                    name=name_b)
+  
+  joined_data<-bind_rows(a_filtered,b_filtered)
+  
+  #joined_data<-joined_data %>% 
+  #  mutate(has_twin=ifelse((dist_eigen<dist_acc|dist_acc>filter_other_meter),FALSE,TRUE))
+  
+  #dist_acc<dist_eigen & 
+  joined_data<-joined_data %>% mutate(distance_twin=ifelse((dist_acc<filter_other_meter),TRUE,FALSE))
+  
+  joined_data<-joined_data %>% mutate(has_twin_full=has_twin & distance_twin)
+ 
+  joined_data<-joined_data %>% 
+    mutate(predicted_by_a=ifelse(prediction>pred_thresh,TRUE,FALSE),
+           predicted_by_b=ifelse(prediction_twin>pred_thresh,TRUE,FALSE))
+  
+  return(joined_data)
+}
+
+
+
+determine_quality<-function(a_b,country,name_select){
+  
+  a_b<-a_b %>% filter(name==name_select)
+  
+  has_twin_no_prediction<-a_b %>% filter(has_twin_full & !predicted_by_a & !predicted_by_b) %>% nrow()
+  
+  has_twin_both_predictions<-a_b %>% filter(has_twin_full & predicted_by_a & predicted_by_b) %>% nrow()
+  
+  has_twin_a_prediction<-a_b %>% filter(has_twin_full & predicted_by_a & !predicted_by_b) %>% nrow()
+  
+  has_twin_b_prediction<-a_b %>% filter(has_twin_full & !predicted_by_a & predicted_by_b) %>% nrow()
+  
+  no_twin_a_prediction<-a_b %>% filter(!has_twin_full & predicted_by_a) %>% nrow()
+  
+  no_twin_no_a_prediction<-a_b %>% filter(!has_twin_full & !predicted_by_a) %>% nrow()
+  
+  return(tibble(country,
+                name_select,
+                has_twin_no_prediction,
+                has_twin_both_predictions,
+                has_twin_a_prediction,
+                has_twin_b_prediction,
+                no_twin_a_prediction,
+                no_twin_no_a_prediction))
+  
+}
+
+
 

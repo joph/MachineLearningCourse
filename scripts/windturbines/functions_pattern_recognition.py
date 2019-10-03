@@ -234,15 +234,16 @@ def copyfile_to_png(src, dst):
       #Output to new format
       dst_ds = driver.CreateCopy(dst, src_ds, 0)
     
-#      try:
-#          os.remove(dst + ".aux.xml")
-#      except: 
-#          print(dst + ".aux.xml")
-#          pass
-      #Properly close the datasets to flush to disk
       dst_ds = None
       src_ds = None
     
+      try:
+          os.remove(dst + ".aux.xml")
+      except: 
+      #    print(dst + ".aux.xml")
+          pass
+      #Properly close the datasets to flush to disk
+      
     
 def copy_threshold_files(p, threshold_low, threshold_high, raw_dir, sub_dst_directory, directory_given = True):
     
@@ -257,10 +258,10 @@ def copy_threshold_files(p, threshold_low, threshold_high, raw_dir, sub_dst_dire
        
         cnt = cnt + 1
     
-        probability = row[3]
-        name = row[4]
-        directory = row[5]
-        country = row[6]
+        probability = row[2]
+        name = row[3]
+        directory = row[4]
+        country = row[5]
         
         dir_all_turbines = raw_dir_dst + sub_dst_directory
         
@@ -346,6 +347,14 @@ def assess_location(f, src, dst, directory, model):
                 
                 
             #Open existing dataset
+            if(not os.path.isfile(src)):
+                
+                element = str.split(f[0:-4],"_")
+                element.append(-1)
+                element.append(f)
+                element.append(directory)
+                return(element)
+                
             src_ds = gdal.Open(src)
 
             #Open output format driver, see gdal_translate --formats for list

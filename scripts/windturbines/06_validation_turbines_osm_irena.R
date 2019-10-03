@@ -48,6 +48,10 @@ wcap <- wcap %>% gather(year,cap,-country)
 
 totcap_2017 <- wcap %>% filter(year == filter_year & country=="World") %>% summarize(capsum=sum(cap))
 
+
+
+
+
 ### we want to exclude around 1% of global capacity
 filter_cap <- 329
 #filter_cap <- 100
@@ -75,6 +79,12 @@ joined %>% filter(is.na(max_area) == TRUE)
 joined <- joined %>% na.omit()
 
 joined %>% summarize(area=sum(max_area,na.rm=TRUE))/10^6
+
+joined %>% 
+  arrange(cap) %>% 
+  mutate(cumsum_cap=cumsum(cap),share_w=cumsum_cap/totcap_2017$capsum) %>% 
+  mutate(cumsum_land=cumsum(max_area)) %>% 
+  ggplot(aes(x=share_w,y=cumsum_land)) + geom_line()
 
 ### known turbines in brazil and in usa
 
