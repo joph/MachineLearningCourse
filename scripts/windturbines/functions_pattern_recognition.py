@@ -27,6 +27,29 @@ from keras.preprocessing import image
 
 from pathlib import Path
 
+from keras.preprocessing.image import ImageDataGenerator
+from keras.callbacks import ModelCheckpoint
+
+from keras import layers
+from keras import models
+from keras import optimizers
+from keras.preprocessing.image import ImageDataGenerator
+from keras.callbacks import ModelCheckpoint
+
+import pickle  # pip install dill --user
+import matplotlib.pyplot as plt
+from keras.applications import VGG16
+import tensorflow as tf
+import pandas as pd
+
+from sklearn.cluster import DBSCAN
+
+gpu_fraction = 0.8
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_fraction)
+sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+
+
+
 import cv2
 
 def read_params():
@@ -38,20 +61,31 @@ def read_params():
     p = {}
     
     countries = []
+    resolutions = []
     
     for i in files:
-        country = i[6:-4]
+        country = i[6:-6]
         countries.append(country)
+        resolution = i[-6:-4]
+        resolutions.append(country)
         
-        p[country] = pd.read_csv(config_file / i)
+         
+        try:
+            t = p[country]
+        except KeyError:
+            p[country] = {}
+        
+        
+        p[country][resolution] = pd.read_csv(config_file / i)
     
     return((countries,p))
         
 COUNTRIES, PARAMS = read_params()
 
 
-def get_param(country,name):
-    val=PARAMS[country].at[0,name]
+def get_param(country,name,resolution = 19):
+    
+    val=PARAMS[country][str(resolution)].at[0,name]
     return(val)
 
 
@@ -224,6 +258,10 @@ def check_image(file, model, filename):
 
 
 def copyfile_to_png(src, dst):
+    
+      if(os.path.exists(dst)):
+         return()
+    
       src_ds = gdal.Open(src)
 
       #Open output format driver, see gdal_translate --formats for list
@@ -232,10 +270,15 @@ def copyfile_to_png(src, dst):
                 
                 
       #Output to new format
-      dst_ds = driver.CreateCopy(dst, src_ds, 0)
+      try:
+          dst_ds = driver.CreateCopy(dst, src_ds, 0)
     
-      dst_ds = None
-      src_ds = None
+          dst_ds = None
+          src_ds = None
+      except:
+          print("error")
+          print(dst)
+          print(src)
     
       try:
           os.remove(dst + ".aux.xml")
@@ -245,7 +288,7 @@ def copyfile_to_png(src, dst):
       #Properly close the datasets to flush to disk
       
     
-def copy_threshold_files(p, threshold_low, threshold_high, raw_dir, sub_dst_directory, directory_given = True):
+def copy_threshold_files(p, threshold_low, threshold_high, raw_dir, sub_dst_directory, directory_given = True, resolution = 19):
     
     cnt = 0
 
@@ -267,7 +310,7 @@ def copy_threshold_files(p, threshold_low, threshold_high, raw_dir, sub_dst_dire
         
         
         if(not directory_given and not (old_country == country)):
-            raw_dir = get_param(country, "PATH_RAW_IMAGES_OSM")
+            raw_dir = get_param(country, "PATH_RAW_IMAGES_OSM", resolution)
          
         
         old_country = country
@@ -339,68 +382,347 @@ def assess_windparks_country(raw_dir, dirs, temp_dir, model):
             
 
 
-    return(lons_lats_found) 
-    
-    
+    return(lons_lats_found)
+
+
 def assess_location(f, src, dst, directory, model):
-#try:
-                
-                
-            #Open existing dataset
-            if(not os.path.isfile(src)):
-                
-                element = str.split(f[0:-4],"_")
-                element.append(-1)
-                element.append(f)
-                element.append(directory)
-                return(element)
-                
-            src_ds = gdal.Open(src)
+    if (not os.path.isfile(src)):
+        element = str.split(f[0:-4], "_")
+        element.append(-1)
+        element.append(f)
+        element.append(directory)
+        return (element)
 
-            #Open output format driver, see gdal_translate --formats for list
-            format = "PNG"
-            driver = gdal.GetDriverByName(format)
-            try:
-                #Output to new format
-                dst_ds = driver.CreateCopy(dst, src_ds, 0)
+    src_ds = gdal.Open(src)
 
-                #Properly close the datasets to flush to disk
-                dst_ds = None
-                src_ds = None
-                
-                image = load(dst) 
-                predict = model.predict(image)[0]
-                
-  
-            
-           
-                element = str.split(f[0:-4],"_")
-                element.append(predict[0])
-                element.append(f)
-                element.append(directory)
-            
-                os.remove(dst)
-                os.remove(dst+".aux.xml")
-                return(element)
-            
-            except Exception as e:
-                print("Exception gdal " + f)
-                print(e)
-                element = str.split(f[0:-4],"_")
-                element.append(-1)
-                element.append(f)
-                element.append(directory)
-                return(element)
-            
+    # Open output format driver, see gdal_translate --formats for list
+    format = "PNG"
+    driver = gdal.GetDriverByName(format)
+    try:
+        # Output to new format
+        dst_ds = driver.CreateCopy(dst, src_ds, 0)
+
+        # Properly close the datasets to flush to disk
+        dst_ds = None
+        src_ds = None
+
+        image = load(dst)
+        predict = model.predict(image)[0]
+
+        element = str.split(f[0:-4], "_")
+        element.append(predict[0])
+        element.append(f)
+        element.append(directory)
+
+        os.remove(dst)
+        os.remove(dst + ".aux.xml")
+        return (element)
+
+    except Exception as e:
+        print("Exception gdal " + f)
+        print(e)
+        element = str.split(f[0:-4], "_")
+        element.append(-1)
+        element.append(f)
+        element.append(directory)
+        return (element)
 
 
-    #input("Press Enter to continue...")  
+def copy_learning_files(COUNTRY, RESOLUTION, threshold_park_size = 10, delete = False):
+    print("COUNTRY: " + COUNTRY + " RESOLUTION: " + str(RESOLUTION))
+
+    train_dir = get_param(COUNTRY, "PATH_ML_IMAGES_TRAIN", RESOLUTION)
+    test_dir = get_param(COUNTRY, "PATH_ML_IMAGES_TEST", RESOLUTION)
+
+    #### delete directories if exist
+    #### create if not exist
+    #if(delete == True):
+        #shutil.rmtree(train_dir, ignore_errors=True)
+        #shutil.rmtree(test_dir, ignore_errors=True)
+
+        #os.makedirs(train_dir)
+        #os.makedirs(test_dir)
+
+    src_dir_tb = get_param(COUNTRY, "PATH_RAW_IMAGES_TURBINES", RESOLUTION)
+    src_dir_notb = get_param(COUNTRY, "PATH_RAW_IMAGES_NOTURBINES", RESOLUTION)
+
+    turbines = pd.read_csv(get_param(COUNTRY, "FILE_TURBINE_LOCATIONS"))
     
+    #turbines = turbines.iloc[1:10,]
     
-    
-    
+    turbines['id'] = np.arange(1, turbines.shape[0] + 1)
    
+
+    predictions_cs = get_param(COUNTRY, "PATH_RAW_IMAGES_TURBINES", 19)
+
+    # turbines_pred = pd.read_feather(predictions_cs + "all_predictions.feather")
+
+    turbines_pred = pd.read_feather(predictions_cs + "all_predictions.feather")
+
+    turbines = turbines[turbines_pred['prediction'] > 0.99]
+
+   
+    ####filter single turbines
+    EARTH_RADIUS_KM = 6371.0088
+
+    kms_per_radian = EARTH_RADIUS_KM
+    min_distance_km = 0.5
+    epsilon = min_distance_km / kms_per_radian
     
+    turbine_locations = turbines[["xlong","ylat"]]
+
+
+    clustering = DBSCAN(eps=epsilon, min_samples=2, algorithm='ball_tree',
+                        metric='haversine').fit(np.radians(turbine_locations))
+
+    cluster_per_location = clustering.labels_
     
-        
-        
+    turbines["cluster"] = cluster_per_location
+
+    turbines['occur'] = turbines.groupby('cluster')['cluster'].transform('count')
+
+    turbines = turbines[turbines['occur'] > threshold_park_size]
+
+    nmb_samples_all = turbines.shape[0]
+    
+    #turbines = turbines[turbines['id'] <= nmb_samples_all]
+
+    share_train = turbines.shape[0] * 0.8
+    
+    print("share_train")
+    print(share_train)
+    
+    print("Copying turbine files")
+    cnt = 0
+    for i in range(0, turbines.shape[0]):
+        cnt += 1
+
+        # print(file)
+        file_s = str(turbines.iloc[[i]]['id'].values[0]) + '.tif'
+        file_d = str(turbines.iloc[[i]]['id'].values[0]) + '.png'
+
+        # print(file)
+
+        src = os.path.join(src_dir_tb, file_s)
+
+        if (cnt % 1000 == 0):
+            print(cnt)
+            print(src)
+
+        # print(src)
+
+        if (os.path.isfile(src)):
+
+            dst = ""
+
+            if (cnt < share_train):
+                dst = os.path.join(train_dir, file_d)
+
+            if (cnt > share_train):
+                dst = os.path.join(test_dir, file_d)
+
+            copyfile_to_png(src, dst)
+
+        #### copy no-turbine images
+
+    print("Copying non-turbine files")
+
+    cnt = 0
+    for i in range(0, turbines.shape[0]):
+        cnt += 1
+
+        # print(file)
+        file_s = str(turbines.iloc[[i]]['id'].values[0]) + '.tif'
+        file_d = str(turbines.iloc[[i]]['id'].values[0]) + 'no.png'
+
+        # print(file)
+
+        src = os.path.join(src_dir_notb, file_s)
+
+        if (cnt % 1000 == 0):
+            print(cnt)
+            print(src)
+
+        # print(src)
+
+        if (os.path.isfile(src)):
+
+            dst = ""
+
+            if (cnt < share_train):
+                dst = os.path.join(train_dir, file_d)
+
+            if (cnt > share_train):
+                dst = os.path.join(test_dir, file_d)
+
+            copyfile_to_png(src, dst)
+
+            #### copy no-turbine images
+            
+   
+    print('total training turbine images ', len(os.listdir(train_dir)))
+    print('total testing turbine images ', len(os.listdir(test_dir)))
+
+    pd_out_tb = pd.DataFrame(turbines['id'].map(str) + '.png')
+    pd_out_tb['type'] = 'T'
+
+    pd_out_notb = pd.DataFrame(turbines['id'].map(str) + 'no.png')
+    pd_out_notb['type'] = 'F'
+
+    pd_out = pd.concat([pd_out_tb, pd_out_notb])
+
+    print('total training turbine images ', len(os.listdir(train_dir)))
+    print('total testing turbine images ', len(os.listdir(test_dir)))
+
+    share_train_i = int(len(os.listdir(train_dir)) / 2)
+
+    maxs = int(pd_out.shape[0] / 2)
+
+    ind1 = list(range(0, share_train_i))
+    ind11 = list(range(maxs, (maxs + share_train_i)))
+    ind1.extend(ind11)
+
+    ind2 = list(range(share_train_i, maxs))
+    ind21 = list(range((maxs + share_train_i), 2 * maxs))
+    ind2.extend(ind21)
+
+    pd_out_train = pd_out.iloc[ind1]
+    pd_out_test = pd_out.iloc[ind2]
+
+    pd_out_train.to_csv(train_dir + "list.csv")
+    pd_out_test.to_csv(test_dir + "list.csv")
+
+
+
+def train_model_res(RESOLUTION, COUNTRY, epochs = 1):
+    train_dir = get_param(COUNTRY, "PATH_ML_IMAGES_TRAIN", RESOLUTION)
+    test_dir = get_param(COUNTRY, "PATH_ML_IMAGES_TEST", RESOLUTION)
+
+    pd_train = pd.read_csv(train_dir + "list.csv")
+    pd_test = pd.read_csv(test_dir + "list.csv")
+
+    train_datagen = ImageDataGenerator(rescale=1. / 255,
+                                       horizontal_flip=True,
+                                       fill_mode="nearest",
+                                       zoom_range=0.2,
+                                       width_shift_range=0.2,
+                                       height_shift_range=0.2,
+                                       rotation_range=30,
+                                       validation_split=0.25)
+
+    train_generator = train_datagen.flow_from_dataframe(dataframe=pd_train,
+                                                        directory=train_dir,
+                                                        x_col="id",
+                                                        y_col="type",
+                                                        has_ext=True,
+                                                        class_mode="binary",
+                                                        subset="training",
+                                                        batch_size=20)
+
+    val_generator = train_datagen.flow_from_dataframe(dataframe=pd_train,
+                                                      directory=train_dir,
+                                                      x_col="id",
+                                                      y_col="type",
+                                                      has_ext=True,
+                                                      class_mode="binary",
+                                                      subset="validation",
+                                                      batch_size=20)
+
+    #                                                    target_size=(img_width, img_height),
+
+    # Note that the validation data should not be augmented!
+    test_datagen = ImageDataGenerator(rescale=1. / 255)
+
+    test_generator = test_datagen.flow_from_dataframe(dataframe=pd_test,
+                                                      directory=test_dir,
+                                                      x_col="id",
+                                                      y_col="type",
+                                                      has_ext=True,
+                                                      class_mode="binary",
+                                                      batch_size=20)
+
+    conv_base = VGG16(weights='imagenet',
+                      include_top=False,
+                      input_shape=(256, 256, 3))
+
+    model = models.Sequential()
+    model.add(conv_base)
+    model.add(layers.Flatten())
+    model.add(layers.Dense(256, activation='relu'))
+    model.add(layers.Dense(256, activation='relu'))
+    model.add(layers.Dense(1, activation='sigmoid'))
+
+    conv_base.trainable = True
+
+    set_trainable = False
+    for layer in conv_base.layers:
+        if layer.name == 'block4_conv1':
+            set_trainable = True
+        if set_trainable:
+            layer.trainable = True
+        else:
+            layer.trainable = False
+
+    train_datagen = ImageDataGenerator(
+        rescale=1. / 255,
+        rotation_range=40,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        shear_range=0.2,
+        zoom_range=0.2,
+        horizontal_flip=True,
+        fill_mode='nearest')
+
+    model.compile(loss='binary_crossentropy',
+                  optimizer=optimizers.RMSprop(lr=2e-5),
+                  metrics=['acc'])
+
+    mcp_save = ModelCheckpoint(
+        'models/model-' + str(RESOLUTION) + '-unfreezed-resolution-13-{epoch:04d}-{val_loss:.4f}.h5',
+        save_best_only=True, monitor='val_loss', mode='min')
+
+    history = model.fit_generator(
+        train_generator,
+        steps_per_epoch=100,
+        epochs=epochs,
+        validation_data=val_generator,
+        validation_steps=50,
+        callbacks=[mcp_save],
+        verbose=2)
+
+    acc = history.history['acc']
+    val_acc = history.history['val_acc']
+    loss = history.history['loss']
+    val_loss = history.history['val_loss']
+
+    epochs = range(len(acc))
+
+    plt.plot(epochs, acc, 'bo', label='Training acc')
+    plt.plot(epochs, val_acc, 'b', label='Validation acc')
+    plt.title('Training and validation accuracy')
+    plt.legend()
+
+    plt.figure()
+
+    plt.plot(epochs, loss, 'bo', label='Training loss')
+    plt.plot(epochs, val_loss, 'b', label='Validation loss')
+    plt.title('Training and validation loss')
+    plt.legend()
+
+    plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

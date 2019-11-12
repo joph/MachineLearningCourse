@@ -3,6 +3,10 @@ setwd("/data/projects/windturbine-identification/MachineLearningCourse")
 source("scripts/windturbines/functions.R")
 
 SOURCE<-"GOOGLE"
+#SOURCE<-"SENTINEL"
+RESOLUTIONS<-c(13,14,15,16,17,18,19)
+
+
 url_source<-function(x,y,z,SOURCE){
 
   url<-""
@@ -26,7 +30,11 @@ url_source<-function(x,y,z,SOURCE){
     url<-paste0("http://a.tiles.mapbox.com/v4/mapbox.satellite/",z,"/",x,"/",y,".jpg?access_token=pk.eyJ1Ijoiam9waCIsImEiOiJjanZnNXF0YXUwNDlkNDNvYzZnbXUzNnp6In0.RimB9gchYB7XlfyB5ACvXA")
   }
   
+  if(SOURCE=="SENTINEL"){
   
+    url<-paste0("https://c.s2maps-tiles.eu/wmts/?layer=s2cloudless&style=default&tilematrixset=WGS84&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fjpeg&TileMatrix=",z,"&TileCol=",x,"&TileRow=",y)
+    
+  }
   
   return(url)
   
@@ -34,7 +42,6 @@ url_source<-function(x,y,z,SOURCE){
 }
 
 
-RESOLUTION<-19
 
 COUNTRY_LIST<-c("EG", "MA", "ZA", "CN", "IN", "JP", "KP", "PK", "PH", "TH", "CR", "TR", 
                 "AT", "BE", "BG", "HR", "DK", "FI", "FR", "DE", "GR", "IE", "IT", "LT", 
@@ -43,6 +50,7 @@ COUNTRY_LIST<-c("EG", "MA", "ZA", "CN", "IN", "JP", "KP", "PK", "PH", "TH", "CR"
 
 all_params<-list()
 
+for(RESOLUTION in RESOLUTIONS){
 for(COUNTRY in COUNTRY_LIST){
   FILTER_WINDTURBINES_KW<-0
   
@@ -102,6 +110,8 @@ for(COUNTRY in COUNTRY_LIST){
   
   
   PATH_LOCAL_TEMP<-"temp/"
+    #"temp/"
+  #"
   
   
   PATH_QUALITYCHECK<-paste0(
@@ -112,6 +122,15 @@ for(COUNTRY in COUNTRY_LIST){
     "qualityCheck/",
     PATH_EXPERIMENT,
     "qualityCheck.csv")
+  
+  PATH_ML_IMAGES_TRAIN<-paste0("data/aerialImages/",
+                                        PATH_EXPERIMENT,
+                                        "keras_/train/")
+  
+  PATH_ML_IMAGES_TEST<-paste0("data/aerialImages/",
+                               PATH_EXPERIMENT,
+                               "keras_/test/")
+
   
   PATH_ML_IMAGES_TURBINES_TRAIN<-paste0("data/aerialImages/",
                                         PATH_EXPERIMENT,
@@ -257,7 +276,9 @@ for(COUNTRY in COUNTRY_LIST){
     PATH_ML_IMAGES_TYPE_LARGE_VALIDATION,
     PATH_ML_IMAGES_TYPE_REGRESSION_TRAIN,
     PATH_ML_IMAGES_TYPE_REGRESSION_TEST,
-    PATH_ML_IMAGES_TYPE_REGRESSION_VALIDATION
+    PATH_ML_IMAGES_TYPE_REGRESSION_VALIDATION,
+    PATH_ML_IMAGES_TRAIN,
+    PATH_ML_IMAGES_TEST
     #,
     #PATH_RAW_IMAGES_ASSESSMENT_TURBINES
   )
@@ -279,8 +300,8 @@ for(COUNTRY in COUNTRY_LIST){
                      paths,
                      files)
   
-  write_csv(params,paste0("config/params",COUNTRY,".csv"))
-  all_params[[COUNTRY]]<-params
+  write_csv(params,paste0("config/params",COUNTRY,RESOLUTION,".csv"))
+  all_params[[COUNTRY]][[RESOLUTION]]<-params
 }
-
+}
 CURRENT_COUNTRY<-"BR"

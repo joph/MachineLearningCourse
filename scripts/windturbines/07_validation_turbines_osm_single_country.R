@@ -2,14 +2,35 @@ setwd("/data/projects/windturbine-identification/MachineLearningCourse")
 source("scripts/windturbines/00_config.R")
 
 library(maps)
+library(spatstat)
 
 predictions_osm<-feather("data/osm/all_predictions.feather") %>% as_tibble()
 
 
-world_map <- map_data("world")
-ggplot(world_map, aes(x = long, y = lat)) +
-  geom_polygon(fill="lightgray", colour = "white",aes(group=group)) +
-  geom_point(data=predictions_osm,aes(x=lon,y=lat))
+W <- owin(c(-180,180),c(-180,180))
+pp1<-ppp(predictions_osm$lon,predictions_osm$lat,window=W)
+
+
+n_<-360
+qcount<-quadratcount(pp1,n_,n_)
+int<-intensity(qcount) %>% as_tibble()
+
+int<-int %>% mutate(x1=rep(-180:179,each=n_),y1=rep(179:-180,n_))
+
+ggplot(int) +
+  geom_point(aes(x=x1,y=y1,col=n),
+             size=0.001) +
+  scale_color_gradient(low="#FFFFFF",high=colorsERC3[1]) +
+
+  
+ggplot()+
+    geom_polygon(data=world_map,
+               aes(x=long,y=lat),
+               fill=NA, 
+               aes(group=group))
+  
+
+
 
 CURRENT_COUNTRY<-"US"
 

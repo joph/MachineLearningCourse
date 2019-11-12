@@ -16,7 +16,7 @@ area <- area1[4:nrow(area1),c(1,5:ncol(area1))]
 names(area) <- area1[3,c(1,5:ncol(area1))]
 
 area_filtered<-area %>% gather(year,area,-'Country Name') %>% mutate(area=as.numeric(area), country=`Country Name`) %>% 
-  filter(year > "2000" & year < "2020") %>% group_by(country) %>% summarize(max_area=max(area,na.rm=TRUE))
+  dplyr::filter(year > "2000" & year < "2020") %>% group_by(country) %>% dplyr::summarize(max_area=max(area,na.rm=TRUE))
 
 
 area_filtered$country[area_filtered$country=="United States"]<-"USA"
@@ -46,7 +46,7 @@ wcap <- wcap1[-which(is.na(wcap1$country)),]
 wcap <- wcap %>% gather(year,cap,-country)
 
 
-totcap_2017 <- wcap %>% filter(year == filter_year & country=="World") %>% summarize(capsum=sum(cap))
+totcap_2017 <- wcap %>% filter(year == filter_year & country=="World") %>% dplyr::summarize(capsum=sum(cap))
 
 
 
@@ -55,7 +55,7 @@ totcap_2017 <- wcap %>% filter(year == filter_year & country=="World") %>% summa
 ### we want to exclude around 1% of global capacity
 filter_cap <- 329
 #filter_cap <- 100
-wcap %>% filter(year==filter_year & cap<filter_cap) %>% summarize(capsum_share=sum(cap)/totcap_2017)
+wcap %>% filter(year==filter_year & cap<filter_cap) %>% dplyr::summarize(capsum_share=sum(cap)/totcap_2017)
 wcap %>% filter(year==filter_year & cap<filter_cap) %>% nrow()
 
 ### remaining countries

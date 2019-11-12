@@ -285,13 +285,14 @@ save_tile<-function(file,lon,lat,zoom){
   #layout(matrix(1:9, ncol=3, byrow=TRUE))
   
   temp<-PATH_LOCAL_TEMP
-  dir.create(temp, showWarnings = FALSE)
+  #dir.create(temp, showWarnings = FALSE)
   
   prefix<-floor(runif(1)*100000) 
   
   for(i in -1:1){
     for(j in -1:1){
-      #print(i)
+      
+      #print(paste("gettile",i))
       
       #i<-1
       #j<-1
@@ -303,9 +304,9 @@ save_tile<-function(file,lon,lat,zoom){
                       get_param(CURRENT_COUNTRY,
                                 "SOURCE"))
       
-      print(url)
+      #print(url)
       f<-paste0(temp,prefix,cnt,".jpg")
-
+      #print(f)
       download.file(url, f, mode = "wb",quiet=TRUE)
 
       img<-brick(f)
@@ -313,7 +314,7 @@ save_tile<-function(file,lon,lat,zoom){
       
      
       coords<-tile2Coords(cols+i,rows+j,as.numeric(zoom))
-      print("4")
+      #print("4")
       
       #print(coords)
       xmin(img) <- coords[1] 
@@ -323,22 +324,45 @@ save_tile<-function(file,lon,lat,zoom){
       crs(img) <- CRS("+init=epsg:4326")
 
       f<-paste0(temp,prefix,cnt,".tif")
-      writeRaster(img,f)
+      #print(f)
+      writeRaster(img,f,overwrite=TRUE)
 
-            cnt<-cnt+1
+      cnt<-cnt+1
 
       }
       
   }
-
-    files<-paste0(temp,prefix,1:9,".tif")
+  #print("gettileB")
+  files<-paste0(temp,prefix,1:9,".tif")
+  #print("gettileB1")
+  
   all_raster<-sapply(files,brick)
+  #print("gettileB2")
+  
   fin<-all_raster[[1]]
   for(i in 2:9){
-    fin<-merge(fin,all_raster[[i]],tolerance=1)
+    #print(paste(i,"gettileB"))
+    #print(fin)
+    #print(all_raster[i])
+    
+    result = tryCatch({
+      fin<-raster::merge(fin,all_raster[[i]],tolerance=1)
+      
+    }, warning = function(warning_condition) {
+      #print(warning_condition)
+    }, error = function(error_condition) {
+      
+      print("B")
+      print(error_condition)
+    }, finally={
+    })
+    
+    
   }
-
+  #print("gettileC")
+  
   files_jpg<-paste0(temp,prefix,1:9,".jpg")
+  #print("gettileD")
   
   
   unlink(files)
@@ -347,15 +371,19 @@ save_tile<-function(file,lon,lat,zoom){
   
   
     
+  #print("gettileF")
   
   
   s <- brick(nl=3,nrow = 256, ncol = 256)
   extent(s) <- extent(fin)
   ras <- resample(fin, s, method = 'bilinear')
+  #print("gettileG")
   
   #plotRGB(ras)
   #print(file)
   #print(ras)
+  #print("final")
+  #print(file)
   writeRaster(ras,file,overwrite=TRUE)
 }
   
@@ -364,8 +392,19 @@ save_tile<-function(file,lon,lat,zoom){
 
 
 
-createNonWindTurbineImagesRandom<-function(windTurbines_filtered,
-                                           n,directory,shapeLoc,zoom=17){
+createNonWindTurbineImagesRandom<-function(country,
+                                           windTurbines_filtered,
+                                           n,directory,shapeLoc,
+                                           zoom=17,
+                                           nmb=32,
+                                           checkIfTurbine=TRUE){
+
+  countryShape<-raster::getData("GADM", country=country, level=0)
+  
+  
+  subs_union <- 1
+  
+  if(checkIfTurbine){
   
   dir.create(file.path(".", directory), 
              showWarnings = FALSE)
@@ -397,18 +436,18 @@ createNonWindTurbineImagesRandom<-function(windTurbines_filtered,
   }
   
    
-  
+  } 
 
-  minX<-min(windTurbines_filtered$Long)
-  maxX<-max(windTurbines_filtered$Long)
-  minY<-min(windTurbines_filtered$Lat)
-  maxY<-max(windTurbines_filtered$Lat)
+  #minX<-min(windTurbines_filtered$Long)
+  #maxX<-max(windTurbines_filtered$Long)
+  #minY<-min(windTurbines_filtered$Lat)
+  #maxY<-max(windTurbines_filtered$Lat)
   
   
   logfile<-logfile<-paste0(PATH_TEMP,"out_NoWindturbines.log")
   
   unlink(logfile)
-  cl <- makeCluster(2,
+  cl <- makeCluster(nmb,
                     outfile=logfile)
   
   clusterEvalQ(cl, source("scripts/windturbines/functions.R"))
@@ -424,11 +463,9 @@ createNonWindTurbineImagesRandom<-function(windTurbines_filtered,
             getOneRandomTileNoTurbine,
             directory,
             subs_union,
-            minX,
-            maxX,
-            minY,
-            maxY,
-            zoom
+            countryShape,
+            zoom,
+            checkIfTurbine
             )
   # one or more parLapply calls
   stopCluster(cl)
@@ -439,51 +476,105 @@ createNonWindTurbineImagesRandom<-function(windTurbines_filtered,
   
 }
 
-getOneRandomTileNoTurbine<-function(i,directory,subs_union,minX,maxX,minY,maxY,zoom){
-    print(i)
-  
+getOneRandomTileNoTurbine<-function(i,directory,subs_union,country_shape,zoom,checkIfTurbine=TRUE){
+   
     if(file.exists(paste0(directory,i,".tif"))){
       return()
     }
   
+    if(checkIfTurbine){
+  
     got<-TRUE
     while(got){
+      
+      points <- NULL
+      
+      result = tryCatch({
+        points<-spsample(country_shape,n=1,"random",iter=2000)
+        
+        
+        
+        #coordinates(points) <- c("Long", "Lat")
+        #proj4string(points) <- CRS("+proj=longlat +datum=WGS84")  
+        #points<-as(points, "SpatialPoints")
+        points1<-spTransform(points,projection(subs_union))
+        
+        points_buffer<-gBuffer(points1[1,],width=0.01,capStyle="SQUARE")
+        proj4string(points_buffer)<-proj4string(points1)
+        if(!gIntersects(points_buffer,subs_union)){
+          
+          result <- tryCatch({
+            
+            points<-spTransform(points,CRS("+proj=longlat +datum=WGS84"))
+            
+            x<-points$x[1]
+            y<-points$y[1]
+            
+            print(x)
+            print(y)
+            save_tile(paste0(directory,i,".tif"),x,y,zoom)
+            
+            got<-FALSE
+            
+          }, error = function(err) {
+            print("C")
+            
+            print(err) 
+            # return(0)
+            
+          }) 
+          
+          
+          
+        }
+        #plot(subs_union)
+        #plot(points,add=TRUE,col="red")
+        #plot(points_buffer,add=TRUE)
+        #fin<-raster::merge(fin,all_raster[[i]],tolerance=1)
+        
+      }, warning = function(warning_condition) {
+        #print(warning_condition)
+      }, error = function(error_condition) {
+        
+        
+        print(error_condition)
+        return()
+      }, finally={
+      
+      })
   
-      x<-minX+runif(1)*(maxX-minX)
-      y<-minY+runif(1)*(maxY-minY)
-    
-      points<-data.frame(Long=c(x),Lat=c(y))
-      coordinates(points) <- c("Long", "Lat")
-      proj4string(points) <- CRS("+proj=longlat +datum=WGS84")  
-      points<-as(points, "SpatialPoints")
-      points<-spTransform(points,projection(subs_union))
-    
-      points_buffer<-gBuffer(points[1,],width=0.01,capStyle="SQUARE")
-      proj4string(points_buffer)<-proj4string(points)
-      #plot(subs_union)
-      #plot(points,add=TRUE,col="red")
-      #plot(points_buffer,add=TRUE)
-        
-    if(!gIntersects(points_buffer,subs_union)){
       
-      result <- tryCatch({
         
-        
+ 
+    }
+    }else{
+      
+      points<-NULL
+      
+      result = tryCatch({
+        points<-spsample(country_shape,n=1,"random")
+        #coordinates(points) <- c("Long", "Lat")
+        #proj4string(points) <-   
+        #points<-as(points, "SpatialPoints")
+        points<-spTransform(points,CRS("+proj=longlat +datum=WGS84"))
+        x<-points$x[1]
+        y<-points$y[1]
         save_tile(paste0(directory,i,".tif"),x,y,zoom)
+      }, warning = function(warning_condition) {
+        #print(warning_condition)
+      }, error = function(error_condition) {
         
-        got<-FALSE
-      
-        }, error = function(err) {
         
-        print(err) 
-        # return(0)
-        
-    }) 
+        print(error_condition)
+        return()
+      }, finally={
+        return()
+      })
       
       
+    
       
     }
-  }
 }
 
 createWindTurbineImages<-function(windTurbines_filtered,directory,zoom=17,start=1,nmb){
@@ -518,7 +609,7 @@ createWindTurbineImages<-function(windTurbines_filtered,directory,zoom=17,start=
                   
                          save_tile(fname,x,y,zoom)
                 }, error = function(err) {
-                  
+                 
                   print(err) 
                   # return(0)
                   
@@ -534,8 +625,8 @@ createWindTurbineImages<-function(windTurbines_filtered,directory,zoom=17,start=
   
 }
 
-get_param<-function(country,param_name){
-  return(all_params[[country]][param_name] %>% unlist() %>% as.character())
+get_param<-function(country,param_name,resolution=19){
+  return(all_params[[country]][[resolution]][param_name] %>% unlist() %>% as.character())
 }
 
 
@@ -600,7 +691,7 @@ doSinglePark<-function(name,
                    save_tile(file,lon_ind,lat_ind,zoom)
                    
                  }, error = function(err) {
-                   
+                   print("A")
                    print(err) 
                    # return(0)
                    
