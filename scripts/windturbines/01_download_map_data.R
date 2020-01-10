@@ -5,7 +5,7 @@ source("scripts/windturbines/00_config.R")
 checkIfTrue<-list()
 checkIfTrue["US"]<-FALSE
 
-RESOLUTIONS<-c(17:19)
+RESOLUTIONS<-c(19:19)
 
 COUNTRIES<-c("US")
 

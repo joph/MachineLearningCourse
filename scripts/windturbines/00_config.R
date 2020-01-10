@@ -109,7 +109,7 @@ for(COUNTRY in COUNTRY_LIST){
   PATH_TEMP<-"data/temp/"
   
   
-  PATH_LOCAL_TEMP<-"temp/"
+  PATH_LOCAL_TEMP<-"/media/ramdisk/"
     #"temp/"
   #"
   

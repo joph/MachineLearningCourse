@@ -5,7 +5,6 @@ Created on Mon Mar  4 10:13:16 2019
 @author: jschmidt
 """
 
-
 from PIL import Image
 import numpy as np
 from skimage import transform
@@ -44,125 +43,119 @@ import pandas as pd
 
 from sklearn.cluster import DBSCAN
 
+import cv2 as cv
+import glob
+
 gpu_fraction = 0.8
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_fraction)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
-
-
 import cv2
 
+
 def read_params():
-    
     config_file = Path(__file__).parent.parent.parent / "config"
-    
-    
+
     files = [x for x in os.listdir(config_file) if (x.endswith(".csv") and x.startswith("params"))]
     p = {}
-    
+
     countries = []
     resolutions = []
-    
+
     for i in files:
         country = i[6:-6]
         countries.append(country)
         resolution = i[-6:-4]
         resolutions.append(country)
-        
-         
+
         try:
             t = p[country]
         except KeyError:
             p[country] = {}
-        
-        
+
         p[country][resolution] = pd.read_csv(config_file / i)
-    
-    return((countries,p))
-        
+
+    return ((countries, p))
+
+
 COUNTRIES, PARAMS = read_params()
 
 
-def get_param(country,name,resolution = 19):
-    
-    val=PARAMS[country][str(resolution)].at[0,name]
-    return(val)
+def get_param(country, name, resolution=19):
+    val = PARAMS[country][str(resolution)].at[0, name]
+    return (val)
 
 
 def cop(dst, src, source_ext):
-    src=src + source_ext
-    dst=dst + ".png"
-    if(not os.path.isfile(dst)): 
-        
-        if(source_ext == ".png"):
-             copyfile(src,dst)
-             
+    src = src + source_ext
+    dst = dst + ".png"
+    if (not os.path.isfile(dst)):
+
+        if (source_ext == ".png"):
+            copyfile(src, dst)
+
         else:
-        
+
             try:
-                gdal.Translate(dst,src)
+                gdal.Translate(dst, src)
             except:
                 print("gdal error")
-    
+
 
 def load(filename):
-   
-   np_image = Image.open(filename)
-   #imshow(np.asarray(np_image))
-   
-   np_image = np.array(np_image).astype('float32')/255
-   np_image = transform.resize(np_image, (256, 256, 3))
-   np_image = np.expand_dims(np_image, axis=0)
-   return np_image
+    np_image = Image.open(filename)
+    # imshow(np.asarray(np_image))
 
-def cop_predict(f,threshold,raw_dir,temp_dir,dest_dir,model):
-    src = raw_dir+f
-    dst = temp_dir+f[:-4]+".png"
-   
-    final_dst = dest_dir+f[:-4]+".png"
-    if(not os.path.isfile(final_dst)):
+    np_image = np.array(np_image).astype('float32') / 255
+    np_image = transform.resize(np_image, (256, 256, 3))
+    np_image = np.expand_dims(np_image, axis=0)
+    return np_image
+
+
+def cop_predict(f, threshold, raw_dir, temp_dir, dest_dir, model):
+    src = raw_dir + f
+    dst = temp_dir + f[:-4] + ".png"
+
+    final_dst = dest_dir + f[:-4] + ".png"
+
+    if (not os.path.isfile(final_dst)):
         try:
-            gdal.Translate(dst,src)
+            gdal.Translate(dst, src)
         except:
             print("Exception gdal " + f)
-            return(f)
-        
+            return (f)
+
         print(src)
         print(dst)
         print(final_dst)
-    
-    
-        image = load(dst) 
+
+        image = load(dst)
         predict = model.predict(image)[0]
         print(predict)
-    
-        if(predict<threshold):
-            copyfile(dst,final_dst)
-    
+
+        if (predict < threshold):
+            copyfile(dst, final_dst)
+
         os.remove(dst)
-        os.remove(dst+".aux.xml")
-    
-        return("")
-    
-    return("")
-    
-    
+        os.remove(dst + ".aux.xml")
+
+        return ("")
+
+    return ("")
 
 
-    
-#K.clear_session()
+# K.clear_session()
 
 
 def check_image(file, model, filename):
-    
     K.clear_session()
-    
-    model = models.load_model("models/simple-model-027-0.988224-1.000000.h5")
-    
-    img_path=file
+
+    model = models.load_model(model)
+
+    img_path = file
     img = image.load_img(img_path, target_size=(256, 256))
 
-    #imshow(img)
+    # imshow(img)
 
     # `x` is a float32 Numpy array of shape (224, 224, 3)
     x = image.img_to_array(img)
@@ -173,18 +166,18 @@ def check_image(file, model, filename):
 
     # Finally we preprocess the batch
     # (this does channel-wise color normalization)
-    #x=image.img_to_array(x)
-    #x=np.expand_dims(x, axis=0)
-    x /=255
+    # x=image.img_to_array(x)
+    # x=np.expand_dims(x, axis=0)
+    x /= 255
 
     print(model.predict(x))
 
-    m_out = model.output[:,0]
+    m_out = model.output[:, 0]
 
     # The is the output feature map of the `block5_conv3` layer,
     # the last convolutional layer in VGG16
     last_conv_layer = model.get_layer('conv2d_4')
-    #last_conv_layer = model.get_layer("vgg16").get_layer('block5_conv3')
+    # last_conv_layer = model.get_layer("vgg16").get_layer('block5_conv3')
 
     # This is the gradient of the "african elephant" class with regard to
     # the output feature map of `block5_conv3`
@@ -212,177 +205,154 @@ def check_image(file, model, filename):
     # is our heatmap of class activation
     heatmap = np.mean(conv_layer_output_value, axis=-1)
 
-
     heatmap = np.maximum(heatmap, 0)
     heatmap /= np.max(heatmap)
-    #plt.matshow(heatmap)
-    #plt.show()
-
-
+    # plt.matshow(heatmap)
+    # plt.show()
 
     # We use cv2 to load the original image
     img = cv2.imread(img_path)
-    
-  #  imshow(img)
+
+    #  imshow(img)
 
     # We resize the heatmap to have the same size as the original image
-    
-    #heatmap_ = cv2.resize(heatmap, (img.shape[1], img.shape[0]))
-    
-    heatmap_ = heatmap
-    
-    #heatmap_ = heatmap 
-    #img = cv2.resize(img, (heatmap.shape[1], heatmap.shape[0]))
- #   imshow(heatmap_)
 
+    # heatmap_ = cv2.resize(heatmap, (img.shape[1], img.shape[0]))
+
+    heatmap_ = heatmap
+
+    # heatmap_ = heatmap
+    # img = cv2.resize(img, (heatmap.shape[1], heatmap.shape[0]))
+    #   imshow(heatmap_)
 
     # We convert the heatmap to RGB
     heatmap_ = np.uint8(255 * heatmap_)
-#    imshow(heatmap_)
+    #    imshow(heatmap_)
 
     # We apply the heatmap to the original image
     heatmap_ = cv2.applyColorMap(heatmap_, cv2.COLORMAP_JET)
-    #imshow(heatmap_)
+    # imshow(heatmap_)
 
-    heatmap_ = cv2.resize(heatmap_, (img.shape[1], img.shape[0]),cv2.INTER_AREA)
-   
+    heatmap_ = cv2.resize(heatmap_, (img.shape[1], img.shape[0]), cv2.INTER_AREA)
 
     superimposed_img = np.around(heatmap_ * 0.7 + img).astype(int)
-    
+
     imshow(superimposed_img)
-    
-    image.save_img("presentations/figures/"+filename, superimposed_img)
+
+    image.save_img("presentations/figures/" + filename, superimposed_img)
 
     # Save the image to disk
-    #cv2.imwrite('/Users/fchollet/Downloads/elephant_cam.jpg', superimposed_img)
+    # cv2.imwrite('/Users/fchollet/Downloads/elephant_cam.jpg', superimposed_img)
 
 
 def copyfile_to_png(src, dst):
-    
-      if(os.path.exists(dst)):
-         return()
-    
-      src_ds = gdal.Open(src)
 
-      #Open output format driver, see gdal_translate --formats for list
-      format = "PNG"
-      driver = gdal.GetDriverByName(format)
-                
-                
-      #Output to new format
-      try:
-          dst_ds = driver.CreateCopy(dst, src_ds, 0)
-    
-          dst_ds = None
-          src_ds = None
-      except:
-          print("error")
-          print(dst)
-          print(src)
-    
-      try:
-          os.remove(dst + ".aux.xml")
-      except: 
-      #    print(dst + ".aux.xml")
-          pass
-      #Properly close the datasets to flush to disk
-      
-    
-def copy_threshold_files(p, threshold_low, threshold_high, raw_dir, sub_dst_directory, directory_given = True, resolution = 19):
-    
+    if (os.path.exists(dst)):
+        return ()
+
+    src_ds = gdal.Open(src)
+
+    # Open output format driver, see gdal_translate --formats for list
+    format = "PNG"
+    driver = gdal.GetDriverByName(format)
+
+    # Output to new format
+    try:
+        dst_ds = driver.CreateCopy(dst, src_ds, 0)
+
+        dst_ds = None
+        src_ds = None
+    except:
+        print("error")
+        print(dst)
+        print(src)
+
+    try:
+        os.remove(dst + ".aux.xml")
+    except:
+        #    print(dst + ".aux.xml")
+        pass
+    # Properly close the datasets to flush to disk
+
+
+def copy_threshold_files(p, threshold_low, threshold_high, raw_dir, sub_dst_directory, directory_given=True,
+                         resolution=19):
     cnt = 0
 
     old_country = ""
-    
+
     raw_dir_dst = raw_dir
 
-    
     for index, row in p.iterrows():
-       
+
         cnt = cnt + 1
-    
+
         probability = row[2]
         name = row[3]
         directory = row[4]
         country = row[5]
-        
+
         dir_all_turbines = raw_dir_dst + sub_dst_directory
-        
-        
-        if(not directory_given and not (old_country == country)):
+
+        if (not directory_given and not (old_country == country)):
             raw_dir = get_param(country, "PATH_RAW_IMAGES_OSM", resolution)
-         
-        
+
         old_country = country
-        
-        if(probability < threshold_high and probability > threshold_low):
-                
-                dir_all = raw_dir + directory + "/"
-            
-                src = dir_all + name
-                
-                
-                
-                
-                dst = dir_all_turbines + "/" + name[:-4] + "_" + str(probability) + "_" + directory + ".png"
-                  
-                try:
-                    src_ds = gdal.Open(src)
 
-                    #Open output format driver, see gdal_translate --formats for list
-                    format = "PNG"
-                    driver = gdal.GetDriverByName(format)
+        if (probability < threshold_high and probability > threshold_low):
 
+            dir_all = raw_dir + directory + "/"
 
-                    #Output to new format
-                    dst_ds = driver.CreateCopy(dst, src_ds, 0)
+            src = dir_all + name
 
-                    #Properly close the datasets to flush to disk
-                    dst_ds = None
-                    src_ds = None
+            dst = dir_all_turbines + "/" + name[:-4] + "_" + str(probability) + "_" + directory + ".png"
 
-                    if(cnt % 100 == 0):
-                        print("src: " + src)
-                        print("dst: " + dst)
-                
-                    os.remove(dst + ".aux.xml")
-                except Exception as e:
-                    print(e)
-                
-                
-                
+            try:
+                src_ds = gdal.Open(src)
 
+                # Open output format driver, see gdal_translate --formats for list
+                format = "PNG"
+                driver = gdal.GetDriverByName(format)
+
+                # Output to new format
+                dst_ds = driver.CreateCopy(dst, src_ds, 0)
+
+                # Properly close the datasets to flush to disk
+                dst_ds = None
+                src_ds = None
+
+                if (cnt % 100 == 0):
+                    print("src: " + src)
+                    print("dst: " + dst)
+
+                os.remove(dst + ".aux.xml")
+            except Exception as e:
+                print(e)
 
 
 def assess_windparks_country(raw_dir, dirs, temp_dir, model):
-    
     lons_lats_found = []
-        
+
     for directory in dirs:
 
         dir_all = raw_dir + directory + "/"
-    
+
         files = [x for x in os.listdir(dir_all) if x.endswith(".tif")]
-        
+
         print("Currently assessing " + directory)
 
-        #dir_all_turbines = raw_dir + directory + "/turbines/"
-        #dir_no_turbines = raw_dir + directory + "/no_turbines/"
-       
-        
+        # dir_all_turbines = raw_dir + directory + "/turbines/"
+        # dir_no_turbines = raw_dir + directory + "/no_turbines/"
+
         for f in files:
-            
             src = dir_all + f
-            dst = temp_dir + f[:-4]+".png"
-            
+            dst = temp_dir + f[:-4] + ".png"
+
             element = assess_location(f, src, dst, directory, model)
-            
+
             lons_lats_found.append(element)
-                
-            
 
-
-    return(lons_lats_found)
+    return (lons_lats_found)
 
 
 def assess_location(f, src, dst, directory, model):
@@ -428,7 +398,7 @@ def assess_location(f, src, dst, directory, model):
         return (element)
 
 
-def copy_learning_files(COUNTRY, RESOLUTION, threshold_park_size = 10, delete = False):
+def copy_learning_files(COUNTRY, RESOLUTION, threshold_park_size=10, delete=False):
     print("COUNTRY: " + COUNTRY + " RESOLUTION: " + str(RESOLUTION))
 
     train_dir = get_param(COUNTRY, "PATH_ML_IMAGES_TRAIN", RESOLUTION)
@@ -436,22 +406,21 @@ def copy_learning_files(COUNTRY, RESOLUTION, threshold_park_size = 10, delete = 
 
     #### delete directories if exist
     #### create if not exist
-    #if(delete == True):
-        #shutil.rmtree(train_dir, ignore_errors=True)
-        #shutil.rmtree(test_dir, ignore_errors=True)
+    if (delete == True):
+        shutil.rmtree(train_dir, ignore_errors=True)
+        shutil.rmtree(test_dir, ignore_errors=True)
 
-        #os.makedirs(train_dir)
-        #os.makedirs(test_dir)
+        os.makedirs(train_dir)
+        os.makedirs(test_dir)
 
     src_dir_tb = get_param(COUNTRY, "PATH_RAW_IMAGES_TURBINES", RESOLUTION)
     src_dir_notb = get_param(COUNTRY, "PATH_RAW_IMAGES_NOTURBINES", RESOLUTION)
 
     turbines = pd.read_csv(get_param(COUNTRY, "FILE_TURBINE_LOCATIONS"))
-    
-    #turbines = turbines.iloc[1:10,]
-    
+
+    # turbines = turbines.iloc[1:10,]
+
     turbines['id'] = np.arange(1, turbines.shape[0] + 1)
-   
 
     predictions_cs = get_param(COUNTRY, "PATH_RAW_IMAGES_TURBINES", 19)
 
@@ -461,22 +430,20 @@ def copy_learning_files(COUNTRY, RESOLUTION, threshold_park_size = 10, delete = 
 
     turbines = turbines[turbines_pred['prediction'] > 0.99]
 
-   
     ####filter single turbines
     EARTH_RADIUS_KM = 6371.0088
 
     kms_per_radian = EARTH_RADIUS_KM
     min_distance_km = 0.5
     epsilon = min_distance_km / kms_per_radian
-    
-    turbine_locations = turbines[["xlong","ylat"]]
 
+    turbine_locations = turbines[["xlong", "ylat"]]
 
     clustering = DBSCAN(eps=epsilon, min_samples=2, algorithm='ball_tree',
                         metric='haversine').fit(np.radians(turbine_locations))
 
     cluster_per_location = clustering.labels_
-    
+
     turbines["cluster"] = cluster_per_location
 
     turbines['occur'] = turbines.groupby('cluster')['cluster'].transform('count')
@@ -484,14 +451,14 @@ def copy_learning_files(COUNTRY, RESOLUTION, threshold_park_size = 10, delete = 
     turbines = turbines[turbines['occur'] > threshold_park_size]
 
     nmb_samples_all = turbines.shape[0]
-    
-    #turbines = turbines[turbines['id'] <= nmb_samples_all]
+
+    # turbines = turbines[turbines['id'] <= nmb_samples_all]
 
     share_train = turbines.shape[0] * 0.8
-    
+
     print("share_train")
     print(share_train)
-    
+
     print("Copying turbine files")
     cnt = 0
     for i in range(0, turbines.shape[0]):
@@ -558,8 +525,7 @@ def copy_learning_files(COUNTRY, RESOLUTION, threshold_park_size = 10, delete = 
             copyfile_to_png(src, dst)
 
             #### copy no-turbine images
-            
-   
+
     print('total training turbine images ', len(os.listdir(train_dir)))
     print('total testing turbine images ', len(os.listdir(test_dir)))
 
@@ -593,8 +559,26 @@ def copy_learning_files(COUNTRY, RESOLUTION, threshold_park_size = 10, delete = 
     pd_out_test.to_csv(test_dir + "list.csv")
 
 
+def remove_erroneous_files(COUNTRY, RESOLUTION):
+    train_dir = get_param(COUNTRY, "PATH_ML_IMAGES_TRAIN", RESOLUTION)
+    test_dir = get_param(COUNTRY, "PATH_ML_IMAGES_TEST", RESOLUTION)
 
-def train_model_res(RESOLUTION, COUNTRY, epochs = 1):
+    imgs_names = glob.glob(train_dir + '/*.png')
+    for imgname in imgs_names:
+        img = cv.imread(imgname)
+        if img is None:
+            print(imgname)
+            os.remove(imgname)
+
+    imgs_names = glob.glob(train_dir + '/*.png')
+    for imgname in imgs_names:
+        img = cv.imread(imgname)
+        if img is None:
+            print(imgname)
+            os.remove(imgname)
+
+
+def train_model_res(RESOLUTION, COUNTRY, epochs=1):
     train_dir = get_param(COUNTRY, "PATH_ML_IMAGES_TRAIN", RESOLUTION)
     test_dir = get_param(COUNTRY, "PATH_ML_IMAGES_TEST", RESOLUTION)
 
@@ -674,19 +658,19 @@ def train_model_res(RESOLUTION, COUNTRY, epochs = 1):
         fill_mode='nearest')
 
     model.compile(loss='binary_crossentropy',
-                  optimizer=optimizers.RMSprop(lr=2e-5),
+                  optimizer=optimizers.RMSprop(lr=1e-6),
                   metrics=['acc'])
 
     mcp_save = ModelCheckpoint(
-        'models/model-' + str(RESOLUTION) + '-unfreezed-resolution-13-{epoch:04d}-{val_loss:.4f}.h5',
+        'models/model-resolution-' + str(RESOLUTION) + '-unfreezed-resolution-{epoch:04d}-{val_loss:.4f}.h5',
         save_best_only=True, monitor='val_loss', mode='min')
 
     history = model.fit_generator(
         train_generator,
-        steps_per_epoch=100,
+        steps_per_epoch=10,
         epochs=epochs,
         validation_data=val_generator,
-        validation_steps=50,
+        validation_steps=10,
         callbacks=[mcp_save],
         verbose=2)
 
@@ -711,18 +695,7 @@ def train_model_res(RESOLUTION, COUNTRY, epochs = 1):
 
     plt.show()
 
+    m = min(val_loss)
+    e = val_loss.index(m) + 1
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    return (f'models/model-resolution-{RESOLUTION}-unfreezed-resolution-{e:04d}-{m:.4f}.h5')
